@@ -228,6 +228,7 @@ export function ServicesPage() {
               <Table.Th>{t('services.colType')}</Table.Th>
               <Table.Th>{t('services.colCost')}</Table.Th>
               <Table.Th>{t('services.colPeriod')}</Table.Th>
+              <Table.Th>{t('services.colNextBilling')}</Table.Th>
               <Table.Th>{t('services.colSource')}</Table.Th>
               <Table.Th />
             </Table.Tr>
@@ -261,6 +262,9 @@ export function ServicesPage() {
                 <Table.Td>{enums.serviceTypeLabel(s.type)}</Table.Td>
                 <Table.Td>{formatMoney(s.cost, s.currency)}</Table.Td>
                 <Table.Td>{enums.periodLabel(s.period)}</Table.Td>
+                <Table.Td style={{ whiteSpace: 'nowrap' }}>
+                  {formatDateShort(s.nextBillingAt)}
+                </Table.Td>
                 <Table.Td>
                   <Badge variant="light" color={s.isManaged ? 'brand' : 'gray'}>
                     {s.isManaged ? t('services.sourceManaged') : t('services.sourceManual')}
@@ -289,7 +293,7 @@ export function ServicesPage() {
             ))}
             {!isLoading && services?.length === 0 && (
               <Table.Tr>
-                <Table.Td colSpan={7}>
+                <Table.Td colSpan={8}>
                   <Text c="dimmed" ta="center" py="md">
                     {t('services.empty')}
                   </Text>
