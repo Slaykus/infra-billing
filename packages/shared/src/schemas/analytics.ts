@@ -5,6 +5,8 @@ export const byProviderSchema = z.object({
   providerUuid: uuidSchema,
   name: z.string(),
   monthlyCost: moneySchema,
+  // Total paid out to this provider (top-ups + manual payments) in base currency.
+  spent: moneySchema,
   balance: moneySchema.nullable(),
   balanceCurrency: currencySchema.nullable(),
   servicesCount: z.number().int(),

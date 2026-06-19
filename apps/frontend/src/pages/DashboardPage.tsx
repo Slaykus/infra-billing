@@ -1,4 +1,4 @@
-import { Alert, Badge, Card, Group, SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import { Alert, Badge, Card, Group, SimpleGrid, Stack, Table, Text, Title } from '@mantine/core';
 import { BarChart, DonutChart } from '@mantine/charts';
 import {
   IconAlertTriangle,
@@ -9,9 +9,12 @@ import {
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { useForecast, useSummary } from '@/api/analytics';
+import { useProviders } from '@/api/providers';
 import { StatCard } from '@/components/StatCard';
+import { ProviderIcon } from '@/components/ProviderIcon';
 import { useEnums } from '@/constants';
 import { formatDateShort, formatMoney } from '@/utils/format';
+import { providerFavicon } from '@/utils/favicon';
 
 const COLORS = ['brand.6', 'teal.6', 'blue.6', 'orange.6', 'pink.6', 'grape.6', 'cyan.6', 'lime.6'];
 
@@ -23,6 +26,8 @@ export function DashboardPage() {
   const enums = useEnums();
   const { data: summary, isLoading } = useSummary();
   const { data: forecast } = useForecast(6);
+  const { data: providers } = useProviders();
+  const providerOf = (uuid: string) => providers?.find((p) => p.uuid === uuid);
 
   const dayLabel = (n: number) =>
     n <= 0
@@ -46,6 +51,9 @@ export function DashboardPage() {
   }));
   const upcoming = summary?.upcomingBillings ?? [];
   const critical = upcoming.filter((b) => b.severity === 'critical');
+  const providerRows = [...(summary?.byProvider ?? [])].sort(
+    (a, b) => Number(b.spent) - Number(a.spent),
+  );
 
   return (
     <Stack gap="lg">
@@ -97,13 +105,10 @@ export function DashboardPage() {
                   when: dayLabel(b.daysUntil),
                   amount: formatMoney(b.cost, b.currency),
                 })}
-                {b.providerBalance != null && (
-                  <>
-                    {t('dashboard.critical.balance', {
-                      amount: formatMoney(b.providerBalance, b.providerBalanceCurrency),
-                    })}
-                  </>
-                )}
+                {b.providerBalance != null &&
+                  t('dashboard.critical.balance', {
+                    amount: formatMoney(b.providerBalance, b.providerBalanceCurrency),
+                  })}
               </Text>
             ))}
           </Stack>
@@ -156,6 +161,63 @@ export function DashboardPage() {
           )}
         </Card>
       </SimpleGrid>
+
+      <Card withBorder radius="md" padding="lg">
+        <Text fw={600} mb="md">
+          {t('dashboard.byProvider.title')}
+        </Text>
+        {providerRows.length > 0 ? (
+          <Table.ScrollContainer minWidth={560}>
+            <Table verticalSpacing="sm" highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>{t('dashboard.byProvider.colProvider')}</Table.Th>
+                  <Table.Th ta="end">{t('dashboard.byProvider.colServices')}</Table.Th>
+                  <Table.Th ta="end">{t('dashboard.byProvider.colMonthly', { base })}</Table.Th>
+                  <Table.Th ta="end">{t('dashboard.byProvider.colSpent', { base })}</Table.Th>
+                  <Table.Th ta="end">{t('dashboard.byProvider.colBalance')}</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {providerRows.map((p) => (
+                  <Table.Tr key={p.providerUuid}>
+                    <Table.Td>
+                      <Group gap={8} wrap="nowrap">
+                        <ProviderIcon
+                          name={p.name}
+                          src={providerFavicon(
+                            providerOf(p.providerUuid) ?? { faviconLink: null, loginUrl: null },
+                          )}
+                          size={18}
+                        />
+                        <Text size="sm" fw={500}>
+                          {p.name}
+                        </Text>
+                      </Group>
+                    </Table.Td>
+                    <Table.Td ta="end">{p.servicesCount}</Table.Td>
+                    <Table.Td ta="end" style={{ whiteSpace: 'nowrap' }}>
+                      {formatMoney(p.monthlyCost, base)}
+                    </Table.Td>
+                    <Table.Td ta="end" style={{ whiteSpace: 'nowrap' }}>
+                      <Text size="sm" fw={600}>
+                        {formatMoney(p.spent, base)}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td ta="end" style={{ whiteSpace: 'nowrap' }}>
+                      {formatMoney(p.balance, p.balanceCurrency)}
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
+        ) : (
+          <Text c="dimmed" size="sm">
+            {isLoading ? t('common.loading') : t('dashboard.empty.noProviders')}
+          </Text>
+        )}
+      </Card>
 
       <Card withBorder radius="md" padding="lg">
         <Text fw={600} mb="md">

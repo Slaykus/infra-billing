@@ -58,6 +58,7 @@ export class AnalyticsService {
     const monthEnd = now.endOf('month');
     let currentMonthPayments = ZERO();
     let totalSpent = ZERO();
+    const spentByProvider = new Map<string, Decimal>();
     for (const p of payments) {
       // `charge` rows are per-service expense detail; counting them alongside top-ups would
       // double the spend, so the paid-out totals use top-ups + manual payments only.
@@ -69,6 +70,10 @@ export class AnalyticsService {
         rates,
       );
       totalSpent = totalSpent.add(base);
+      spentByProvider.set(
+        p.providerUuid,
+        (spentByProvider.get(p.providerUuid) ?? ZERO()).add(base),
+      );
       const pd = dayjs(p.paymentDate);
       if (!pd.isBefore(monthStart) && !pd.isAfter(monthEnd)) {
         currentMonthPayments = currentMonthPayments.add(base);
@@ -155,6 +160,7 @@ export class AnalyticsService {
         providerUuid: p.uuid,
         name: p.name,
         monthlyCost: (byProvider.get(p.uuid)?.monthly ?? ZERO()).toFixed(2),
+        spent: (spentByProvider.get(p.uuid) ?? ZERO()).toFixed(2),
         balance: p.balance ? p.balance.toFixed(2) : null,
         balanceCurrency: p.balanceCurrency,
         servicesCount: byProvider.get(p.uuid)?.count ?? 0,

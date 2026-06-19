@@ -19,10 +19,19 @@ export const dashboard = {
       forecast: 'Charge forecast ({{base}})',
       forecastSeries: 'Forecast',
     },
+    byProvider: {
+      title: 'Spending by provider',
+      colProvider: 'Provider',
+      colServices: 'Services',
+      colMonthly: 'Monthly ({{base}})',
+      colSpent: 'Spent ({{base}})',
+      colBalance: 'Balance',
+    },
     empty: {
       noServices: 'No active services',
       noData: 'No data',
       noUpcoming: 'No charges in the next 14 days',
+      noProviders: 'No providers',
     },
     upcoming: {
       title: 'Upcoming charges (14 days)',
@@ -53,10 +62,19 @@ export const dashboard = {
       forecast: 'Прогноз списаний ({{base}})',
       forecastSeries: 'Прогноз',
     },
+    byProvider: {
+      title: 'Расходы по провайдерам',
+      colProvider: 'Провайдер',
+      colServices: 'Сервисов',
+      colMonthly: 'В месяц ({{base}})',
+      colSpent: 'Потрачено ({{base}})',
+      colBalance: 'Баланс',
+    },
     empty: {
       noServices: 'Нет активных сервисов',
       noData: 'Нет данных',
       noUpcoming: 'Нет списаний в ближайшие 14 дней',
+      noProviders: 'Нет провайдеров',
     },
     upcoming: {
       title: 'Ближайшие списания (14 дней)',
