@@ -1,5 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import type { Period, ProviderKind, ServiceType } from '@infra/shared';
+import {
+  type Period,
+  type ProviderKind,
+  type ServiceType,
+  SUPPORTED_CURRENCIES,
+} from '@infra/shared';
 
 export const PERIODS: Period[] = ['monthly', 'yearly', 'quarterly', 'daily', 'hourly', 'onetime'];
 export const SERVICE_TYPES: ServiceType[] = [
@@ -25,11 +30,9 @@ export const PROVIDER_KINDS: ProviderKind[] = [
   'manual',
 ];
 
-// Currency codes are language-neutral, so they stay static.
-export const CURRENCY_OPTIONS = ['RUB', 'USD', 'EUR', 'KZT', 'CNY'].map((c) => ({
-  value: c,
-  label: c,
-}));
+// Currency codes are language-neutral, so they stay static. Sourced from the shared list so the
+// pickers and the CBR rate fetch stay in sync.
+export const CURRENCY_OPTIONS = SUPPORTED_CURRENCIES.map((c) => ({ value: c, label: c }));
 
 /**
  * Translated labels and `<Select>` options for the domain enums. The underlying values
