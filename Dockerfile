@@ -1,7 +1,6 @@
-FROM node:22-slim AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends openssl \
-  && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache openssl
 
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
@@ -13,17 +12,19 @@ COPY . .
 RUN npm run prisma:generate -w @infra/backend
 RUN npm run build
 
-FROM node:22-slim AS runner
+FROM node:22-alpine AS runner
 ENV PRISMA_HIDE_UPDATE_MESSAGE=true
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends openssl curl \
-  && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache openssl curl
 
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/backend/package.json apps/backend/
 COPY apps/frontend/package.json apps/frontend/
-RUN npm ci --omit=dev
+# Runtime runs only the backend, so install only its production deps. Scoping to the backend
+# workspace skips the frontend's build-only UI libraries (Vite bundles them into
+# apps/frontend/dist; nothing is required from node_modules at runtime) — the bulk of the image.
+RUN npm ci --omit=dev -w @infra/backend --include-workspace-root && npm cache clean --force
 
 COPY --from=builder /app/packages/shared/dist packages/shared/dist
 COPY --from=builder /app/apps/backend/dist apps/backend/dist
