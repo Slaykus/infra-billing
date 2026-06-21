@@ -1,0 +1,6 @@
+/* Lengthen the View Transitions cross-fade used for the theme swap (see ThemeToggle). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.4s;
+  animation-timing-function: ease;
+}

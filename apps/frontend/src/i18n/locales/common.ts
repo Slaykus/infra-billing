@@ -20,6 +20,10 @@ export const common = {
       singleUser: 'root',
       logout: 'Log out',
     },
+    theme: {
+      dark: 'Dark theme',
+      light: 'Light theme',
+    },
     nav: {
       overview: 'Overview',
       infrastructure: 'Infrastructure',
@@ -132,6 +136,10 @@ export const common = {
       brand: 'Infra Billing',
       singleUser: 'root',
       logout: 'Выйти',
+    },
+    theme: {
+      dark: 'Тёмная тема',
+      light: 'Светлая тема',
     },
     nav: {
       overview: 'Обзор',

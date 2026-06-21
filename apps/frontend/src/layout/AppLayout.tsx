@@ -27,6 +27,7 @@ import { NavLink as RouterNavLink, Outlet, useLocation } from 'react-router-dom'
 import { useLogout, useMe } from '@/api/auth';
 import { BuildInfo } from '@/components/BuildInfo';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface NavItem {
   to: string;
@@ -74,6 +75,7 @@ export function AppLayout() {
             <Text fw={700}>Infra Billing</Text>
           </Group>
           <Group gap="xs">
+            <ThemeToggle />
             <LanguageSwitcher />
             <BuildInfo />
           </Group>

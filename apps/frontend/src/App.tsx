@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import 'dayjs/locale/ru';
 import 'dayjs/locale/en';
-import { theme } from './theme';
+import { cssVariablesResolver, theme } from './theme';
 import { RequireAuth } from './auth/RequireAuth';
 import { AppLayout } from './layout/AppLayout';
 import { LoginPage } from './pages/LoginPage';
@@ -28,7 +28,11 @@ export default function App() {
   dayjs.locale(locale);
 
   return (
-    <MantineProvider theme={theme} defaultColorScheme="light">
+    <MantineProvider
+      theme={theme}
+      defaultColorScheme="auto"
+      cssVariablesResolver={cssVariablesResolver}
+    >
       <DatesProvider settings={{ locale, firstDayOfWeek: 1, weekendDays: [0, 6] }}>
         <Notifications position="top-right" />
         <QueryClientProvider client={queryClient}>
