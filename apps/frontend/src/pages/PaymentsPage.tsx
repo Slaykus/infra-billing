@@ -32,6 +32,8 @@ import { useProviders } from '@/api/providers';
 import { apiErrorMessage } from '@/api/client';
 import { useEnums } from '@/constants';
 import { formatDateShort, formatMoney, trimMoney } from '@/utils/format';
+import { providerFavicon } from '@/utils/favicon';
+import { ProviderIcon } from '@/components/ProviderIcon';
 
 interface PForm {
   providerUuid: string;
@@ -61,7 +63,7 @@ export function PaymentsPage() {
   const [opened, { open, close }] = useDisclosure(false);
 
   const providerOptions = (providers ?? []).map((p) => ({ value: p.uuid, label: p.name }));
-  const providerName = (uuid: string) => providers?.find((p) => p.uuid === uuid)?.name ?? '';
+  const providerOf = (uuid: string) => providers?.find((p) => p.uuid === uuid);
 
   const form = useForm<PForm>({
     initialValues: {
@@ -184,7 +186,18 @@ export function PaymentsPage() {
             {payments.map((p) => (
               <Table.Tr key={p.uuid}>
                 <Table.Td>{formatDateShort(p.paymentDate)}</Table.Td>
-                <Table.Td>{providerName(p.providerUuid)}</Table.Td>
+                <Table.Td>
+                  <Group gap={6} wrap="nowrap">
+                    <ProviderIcon
+                      name={providerOf(p.providerUuid)?.name ?? ''}
+                      src={providerFavicon(
+                        providerOf(p.providerUuid) ?? { faviconLink: null, loginUrl: null },
+                      )}
+                      size={18}
+                    />
+                    <Text size="sm">{providerOf(p.providerUuid)?.name ?? ''}</Text>
+                  </Group>
+                </Table.Td>
                 <Table.Td style={{ whiteSpace: 'nowrap' }}>
                   <Badge
                     variant="light"
