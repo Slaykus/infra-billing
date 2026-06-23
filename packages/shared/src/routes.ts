@@ -23,6 +23,7 @@ export const API = {
   RATES: 'rates',
   SETTINGS: 'settings',
   NOTIFICATIONS: 'notifications',
+  TOKENS: 'tokens',
 } as const;
 
 /** Method sub-paths within a controller (NestJS-style; `:uuid` for route params). */
@@ -106,5 +107,9 @@ export const API_PATH = {
   NOTIFICATIONS: {
     CHECK: path(API.NOTIFICATIONS, API_SUB.NOTIFICATIONS_CHECK),
     TEST: path(API.NOTIFICATIONS, API_SUB.NOTIFICATIONS_TEST),
+  },
+  TOKENS: {
+    ROOT: path(API.TOKENS),
+    BY_ID: (uuid: string) => pathId(API.TOKENS, API_SUB.BY_ID, uuid),
   },
 } as const;

@@ -13,3 +13,4 @@ export * from './schemas/analytics';
 export * from './schemas/auth';
 export * from './schemas/webauthn';
 export * from './schemas/health';
+export * from './schemas/api-token';

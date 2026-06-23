@@ -17,6 +17,7 @@ import { ServicesPage } from './pages/ServicesPage';
 import { PaymentsPage } from './pages/PaymentsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AuthSettingsPage } from './pages/AuthSettingsPage';
+import { TokensPage } from './pages/TokensPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } },
@@ -47,6 +48,7 @@ export default function App() {
                   <Route path="payments" element={<PaymentsPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="settings/auth" element={<AuthSettingsPage />} />
+                  <Route path="settings/tokens" element={<TokensPage />} />
                 </Route>
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

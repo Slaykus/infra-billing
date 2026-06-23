@@ -8,6 +8,7 @@ import { payments } from './locales/payments';
 import { providers } from './locales/providers';
 import { services } from './locales/services';
 import { settings } from './locales/settings';
+import { tokens } from './locales/tokens';
 
 export const SUPPORTED_LANGS = ['en', 'ru'] as const;
 export type Lang = (typeof SUPPORTED_LANGS)[number];
@@ -22,6 +23,7 @@ const resources = {
       payments: payments.en,
       settings: settings.en,
       auth: auth.en,
+      tokens: tokens.en,
     },
   },
   ru: {
@@ -33,6 +35,7 @@ const resources = {
       payments: payments.ru,
       settings: settings.ru,
       auth: auth.ru,
+      tokens: tokens.ru,
     },
   },
 };

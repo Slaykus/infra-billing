@@ -35,6 +35,7 @@ export const common = {
       payments: 'Payments',
       settingsItem: 'Settings',
       authItem: 'Sign-in',
+      tokensItem: 'API tokens',
     },
     login: {
       username: 'Username',
@@ -155,6 +156,7 @@ export const common = {
       payments: 'Платежи',
       settingsItem: 'Настройки',
       authItem: 'Вход в систему',
+      tokensItem: 'API токены',
     },
     login: {
       username: 'Логин',

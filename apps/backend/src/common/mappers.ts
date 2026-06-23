@@ -1,5 +1,6 @@
-import { Payment, Provider, Service, SyncRun } from '@generated/prisma/client';
+import { ApiToken, Payment, Provider, Service, SyncRun } from '@generated/prisma/client';
 import {
+  ApiToken as ApiTokenDto,
   Payment as PaymentDto,
   PaymentType,
   Period,
@@ -65,6 +66,16 @@ export function mapSyncRun(r: SyncRun): SyncRunDto {
     error: r.error,
     startedAt: dateToIso(r.startedAt)!,
     finishedAt: dateToIso(r.finishedAt),
+  };
+}
+
+export function mapApiToken(t: ApiToken): ApiTokenDto {
+  return {
+    uuid: t.uuid,
+    tokenName: t.tokenName,
+    token: t.token,
+    lastUsedAt: dateToIso(t.lastUsedAt),
+    createdAt: dateToIso(t.createdAt)!,
   };
 }
 

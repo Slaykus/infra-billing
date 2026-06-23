@@ -3,6 +3,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { CookieOptions } from 'express';
 import { AppConfigService } from '@config/app-config.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { AuthConfigService } from './auth-config.service';
 import { verifyPassword } from './password.util';
 
@@ -18,6 +19,7 @@ export class AuthService {
   constructor(
     private readonly config: AppConfigService,
     private readonly authConfig: AuthConfigService,
+    private readonly prisma: PrismaService,
   ) {}
 
   /** Constant-time credential check against the admin row in the DB. */
@@ -49,6 +51,21 @@ export class AuthService {
     } catch {
       return null;
     }
+  }
+
+  /** Validate an API token (Authorization: Bearer), returning its name or null. */
+  async verifyApiToken(token: string | undefined): Promise<string | null> {
+    if (!token) return null;
+    const row = await this.prisma.apiToken.findUnique({ where: { token } });
+    if (!row) return null;
+    // Throttle the lastUsedAt write to ~once/min so we don't write on every request.
+    const now = Date.now();
+    if (!row.lastUsedAt || now - row.lastUsedAt.getTime() > 60_000) {
+      await this.prisma.apiToken
+        .update({ where: { uuid: row.uuid }, data: { lastUsedAt: new Date(now) } })
+        .catch(() => undefined);
+    }
+    return row.tokenName;
   }
 
   cookieOptions(): CookieOptions {

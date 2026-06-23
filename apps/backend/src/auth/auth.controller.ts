@@ -33,6 +33,7 @@ import { PasskeyRegisterVerifyDto } from './dto/passkey-register-verify.dto';
 import { PasskeyLoginVerifyDto } from './dto/passkey-login-verify.dto';
 import { AuthConfigDto, MeDto, PasskeyDto, SetupStatusDto } from './dto/auth-response.dto';
 import { Public } from './public.decorator';
+import { SessionOnly } from './session-only.decorator';
 import {
   ApiBearerAuth,
   ApiNoContentResponse,
@@ -41,7 +42,10 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
+// Session-only: a token must not manage credentials or change auth settings. @ApiBearerAuth is
+// per-method (not on the class) so the @Public login routes stay unlocked in the docs.
 @ApiTags(CONTROLLERS_INFO.AUTH.TAG)
+@SessionOnly()
 @Controller(API.AUTH)
 export class AuthController {
   constructor(
