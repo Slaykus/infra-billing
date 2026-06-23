@@ -238,7 +238,7 @@ export function DashboardPage() {
                     )}
                   </Text>
                   <Group gap="sm" wrap="nowrap">
-                    <Badge size="sm" variant="light" color={color ?? 'gray'}>
+                    <Badge size="sm" variant={color ? 'light' : 'default'} color={color}>
                       {dayLabel(ub.daysUntil)}
                     </Badge>
                     <Text size="sm" c="dimmed">

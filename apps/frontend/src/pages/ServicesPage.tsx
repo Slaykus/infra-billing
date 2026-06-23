@@ -268,7 +268,10 @@ export function ServicesPage() {
                   {formatDateShort(s.nextBillingAt)}
                 </Table.Td>
                 <Table.Td>
-                  <Badge variant="light" color={s.isManaged ? 'brand' : 'gray'}>
+                  <Badge
+                    variant={s.isManaged ? 'light' : 'default'}
+                    color={s.isManaged ? 'brand' : 'gray'}
+                  >
                     {s.isManaged ? t('services.sourceManaged') : t('services.sourceManual')}
                   </Badge>
                 </Table.Td>
@@ -420,7 +423,7 @@ export function ServicesPage() {
                     </Table.Td>
                     <Table.Td style={{ whiteSpace: 'nowrap' }}>
                       <Badge
-                        variant="light"
+                        variant={p.type === 'charge' ? 'default' : 'light'}
                         color={p.type === 'charge' ? 'gray' : 'teal'}
                         styles={{
                           root: { maxWidth: 'none', overflow: 'visible' },

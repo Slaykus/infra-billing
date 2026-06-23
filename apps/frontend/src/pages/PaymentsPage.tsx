@@ -200,7 +200,7 @@ export function PaymentsPage() {
                 </Table.Td>
                 <Table.Td style={{ whiteSpace: 'nowrap' }}>
                   <Badge
-                    variant="light"
+                    variant={p.type === 'charge' ? 'default' : 'light'}
                     color={p.type === 'charge' ? 'gray' : 'teal'}
                     styles={{
                       root: { maxWidth: 'none', overflow: 'visible' },

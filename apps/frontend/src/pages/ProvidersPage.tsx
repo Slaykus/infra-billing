@@ -295,7 +295,10 @@ export function ProvidersPage() {
                   </Group>
                 </Table.Td>
                 <Table.Td>
-                  <Badge variant="light" color={p.kind === 'manual' ? 'gray' : 'brand'}>
+                  <Badge
+                    variant={p.kind === 'manual' ? 'default' : 'light'}
+                    color={p.kind === 'manual' ? 'gray' : 'brand'}
+                  >
                     {enums.providerKindLabel(p.kind)}
                   </Badge>
                 </Table.Td>

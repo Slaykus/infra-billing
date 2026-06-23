@@ -191,7 +191,7 @@ export function SettingsPage() {
                 {t('settings.telegram.tokenSet')}
               </Badge>
             ) : (
-              <Badge color="gray" variant="light">
+              <Badge color="gray" variant="default">
                 {t('settings.telegram.notConfigured')}
               </Badge>
             )}
