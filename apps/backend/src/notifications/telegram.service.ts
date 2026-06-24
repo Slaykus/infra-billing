@@ -54,7 +54,11 @@ export class TelegramService {
     const s = await this.prisma.settings.findUnique({ where: { id: 1 } });
     const cfg = this.resolveConfig(s);
     if (!cfg) return false;
-    const options: { parse_mode: 'HTML'; message_thread_id?: number } = { parse_mode: 'HTML' };
+    const options: {
+      parse_mode: 'HTML';
+      message_thread_id?: number;
+      link_preview_options: { is_disabled: true };
+    } = { parse_mode: 'HTML', link_preview_options: { is_disabled: true } };
     if (cfg.topicId) options.message_thread_id = Number(cfg.topicId);
     try {
       await new Api(cfg.token).sendMessage(cfg.chatId, html, options);
