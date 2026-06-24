@@ -24,6 +24,13 @@ export const byTypeSchema = z.object({
   servicesCount: z.number().int().describe('Number of services'),
 });
 
+export const byProjectSchema = z.object({
+  projectUuid: uuidSchema.describe('Project UUID'),
+  name: z.string().describe('Project name'),
+  monthlyCost: moneySchema.describe('Monthly cost in base currency'),
+  servicesCount: z.number().int().describe('Number of services'),
+});
+
 export const byCurrencySchema = z.object({
   currency: currencySchema.describe('Currency code'),
   monthlyCostOriginal: moneySchema.describe('Monthly cost in original currency'),
@@ -60,6 +67,7 @@ export const analyticsSummarySchema = z.object({
   currentMonthPayments: moneySchema.describe('Payments this month'),
   totalSpent: moneySchema.describe('Total spent overall'),
   byProvider: z.array(byProviderSchema).describe('Breakdown by provider'),
+  byProject: z.array(byProjectSchema).describe('Breakdown by project'),
   byCountry: z.array(byCountrySchema).describe('Breakdown by country'),
   byType: z.array(byTypeSchema).describe('Breakdown by service type'),
   byCurrency: z.array(byCurrencySchema).describe('Breakdown by currency'),

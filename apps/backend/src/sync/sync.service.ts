@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { Prisma } from '@generated/prisma/client';
-import { SyncRun as SyncRunDto } from '@infra/shared';
+import { DEFAULT_PROJECT_UUID, SyncRun as SyncRunDto } from '@infra/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CryptoService } from '../crypto/crypto.service';
 import { ConnectorFactory } from '@connectors/connector.factory';
@@ -187,6 +187,9 @@ export class SyncService implements OnModuleInit {
         await this.prisma.service.create({
           data: {
             providerUuid,
+            // Providers are shared, so a sync can't know the project — land new services in the
+            // default project; the owner reassigns them on the Services page.
+            projectUuid: DEFAULT_PROJECT_UUID,
             externalId: sd.externalId,
             name: sd.name,
             type: sd.type,

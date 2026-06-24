@@ -1,9 +1,10 @@
-import { ApiToken, Payment, Provider, Service, SyncRun } from '@generated/prisma/client';
+import { ApiToken, Payment, Project, Provider, Service, SyncRun } from '@generated/prisma/client';
 import {
   ApiToken as ApiTokenDto,
   Payment as PaymentDto,
   PaymentType,
   Period,
+  Project as ProjectDto,
   Provider as ProviderDto,
   ProviderKind,
   Service as ServiceDto,
@@ -34,10 +35,22 @@ export function mapProvider(
   };
 }
 
+export function mapProject(p: Project & { _count?: { services: number } }): ProjectDto {
+  return {
+    uuid: p.uuid,
+    name: p.name,
+    faviconLink: p.faviconLink,
+    servicesCount: p._count?.services,
+    createdAt: dateToIso(p.createdAt)!,
+    updatedAt: dateToIso(p.updatedAt)!,
+  };
+}
+
 export function mapService(s: Service & { _count?: { payments: number } }): ServiceDto {
   return {
     uuid: s.uuid,
     providerUuid: s.providerUuid,
+    projectUuid: s.projectUuid,
     name: s.name,
     type: s.type as ServiceType,
     externalId: s.externalId,

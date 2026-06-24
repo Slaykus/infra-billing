@@ -2,6 +2,7 @@ model Service {
   uuid String @id @default(uuid()) @map("uuid")
 
   providerUuid   String    @map("provider_uuid")
+  projectUuid    String    @map("project_uuid")
   name           String    @map("name")
   type           String    @map("type")
   externalId     String?   @map("external_id")
@@ -20,9 +21,11 @@ model Service {
   updatedAt DateTime @updatedAt      @map("updated_at")
 
   provider Provider  @relation(fields: [providerUuid], references: [uuid], onDelete: Cascade)
+  project  Project   @relation(fields: [projectUuid], references: [uuid], onDelete: Restrict)
   payments Payment[]
 
   @@unique([providerUuid, externalId], map: "services_provider_external_id_key")
   @@index([providerUuid], map: "services_provider_uuid_idx")
+  @@index([projectUuid], map: "services_project_uuid_idx")
   @@map("services")
 }

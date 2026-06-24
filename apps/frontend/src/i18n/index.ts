@@ -5,6 +5,7 @@ import { auth } from './locales/auth';
 import { common } from './locales/common';
 import { dashboard } from './locales/dashboard';
 import { payments } from './locales/payments';
+import { projects } from './locales/projects';
 import { providers } from './locales/providers';
 import { services } from './locales/services';
 import { settings } from './locales/settings';
@@ -19,6 +20,7 @@ const resources = {
       ...common.en,
       dashboard: dashboard.en,
       providers: providers.en,
+      projects: projects.en,
       services: services.en,
       payments: payments.en,
       settings: settings.en,
@@ -31,6 +33,7 @@ const resources = {
       ...common.ru,
       dashboard: dashboard.ru,
       providers: providers.ru,
+      projects: projects.ru,
       services: services.ru,
       payments: payments.ru,
       settings: settings.ru,

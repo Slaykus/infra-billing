@@ -15,6 +15,7 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import {
   IconCoin,
+  IconFolders,
   IconKey,
   IconLayoutDashboard,
   IconLogout,
@@ -50,6 +51,7 @@ const NAV: { sectionKey: string; items: NavItem[] }[] = [
     sectionKey: 'nav.infrastructure',
     items: [
       { to: '/providers', labelKey: 'nav.providers', icon: IconServer2 },
+      { to: '/projects', labelKey: 'nav.projects', icon: IconFolders },
       { to: '/services', labelKey: 'nav.services', icon: IconStack2 },
       { to: '/payments', labelKey: 'nav.payments', icon: IconReceipt2 },
     ],

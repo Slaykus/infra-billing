@@ -5,6 +5,7 @@ import { API_PATH } from '@infra/shared';
 
 export interface ServiceFilter {
   providerUuid?: string;
+  projectUuid?: string;
   type?: string;
   isActive?: boolean;
 }
@@ -15,6 +16,7 @@ export function useServices(filter: ServiceFilter = {}) {
     queryFn: async () => {
       const params: Record<string, string> = {};
       if (filter.providerUuid) params.providerUuid = filter.providerUuid;
+      if (filter.projectUuid) params.projectUuid = filter.projectUuid;
       if (filter.type) params.type = filter.type;
       if (filter.isActive !== undefined) params.isActive = String(filter.isActive);
       return (await api.get<Service[]>(API_PATH.SERVICES.ROOT, { params })).data;

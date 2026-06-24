@@ -11,6 +11,7 @@ import {
 export const serviceSchema = z.object({
   uuid: uuidSchema.describe('Service UUID'),
   providerUuid: uuidSchema.describe('Provider UUID'),
+  projectUuid: uuidSchema.describe('Project UUID'),
   name: z.string().describe('Service name'),
   type: serviceTypeSchema.describe('Service type'),
   externalId: z.string().describe('ID in provider API').nullable(),
@@ -32,6 +33,7 @@ export type Service = z.infer<typeof serviceSchema>;
 
 export const createServiceSchema = z.object({
   providerUuid: uuidSchema.describe('Provider UUID'),
+  projectUuid: uuidSchema.describe('Project UUID'),
   name: z.string().min(1).describe('Service name'),
   type: serviceTypeSchema.describe('Service type'),
   cost: moneySchema.describe('Cost per period'),
@@ -46,6 +48,8 @@ export type CreateService = z.infer<typeof createServiceSchema>;
 export const updateServiceSchema = z.object({
   // Only honoured for manual services — moving a synced one would orphan it from sync.
   providerUuid: uuidSchema.describe('Provider UUID').optional(),
+  // Reassign the service to another project (honoured for synced services too).
+  projectUuid: uuidSchema.describe('Project UUID').optional(),
   name: z.string().min(1).describe('Service name').optional(),
   type: serviceTypeSchema.describe('Service type').optional(),
   cost: moneySchema.describe('Cost per period').optional(),

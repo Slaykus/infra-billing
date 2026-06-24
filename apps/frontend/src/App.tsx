@@ -13,6 +13,7 @@ import { AppLayout } from './layout/AppLayout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ProvidersPage } from './pages/ProvidersPage';
+import { ProjectsPage } from './pages/ProjectsPage';
 import { ServicesPage } from './pages/ServicesPage';
 import { PaymentsPage } from './pages/PaymentsPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -44,6 +45,7 @@ export default function App() {
                 <Route element={<AppLayout />}>
                   <Route index element={<DashboardPage />} />
                   <Route path="providers" element={<ProvidersPage />} />
+                  <Route path="projects" element={<ProjectsPage />} />
                   <Route path="services" element={<ServicesPage />} />
                   <Route path="payments" element={<PaymentsPage />} />
                   <Route path="settings" element={<SettingsPage />} />

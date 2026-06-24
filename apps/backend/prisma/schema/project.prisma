@@ -1,0 +1,13 @@
+model Project {
+  uuid String @id @default(uuid()) @map("uuid")
+
+  name        String  @map("name")
+  faviconLink String? @map("favicon_link")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  services Service[]
+
+  @@map("projects")
+}

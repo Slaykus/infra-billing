@@ -25,8 +25,9 @@ export class AnalyticsService {
     const { baseCurrency } = await this.currency.getEffectiveSettings();
     const rates = await this.currency.getRubRates();
 
-    const [providers, services, payments] = await Promise.all([
+    const [providers, projects, services, payments] = await Promise.all([
       this.prisma.provider.findMany({ orderBy: { createdAt: 'asc' } }),
+      this.prisma.project.findMany({ orderBy: { createdAt: 'asc' } }),
       this.prisma.service.findMany({ where: { isActive: true } }),
       this.prisma.payment.findMany(),
     ]);
@@ -35,6 +36,7 @@ export class AnalyticsService {
 
     let monthlyTotal = ZERO();
     const byProvider = new Map<string, Agg>();
+    const byProject = new Map<string, Agg>();
     const byCountry = new Map<string, Agg>();
     const byType = new Map<string, Agg>();
     const byCurrency = new Map<string, { original: Decimal; base: Decimal; count: number }>();
@@ -44,6 +46,7 @@ export class AnalyticsService {
       const monthlyBase = this.currency.convert(monthlyOrig, s.currency, baseCurrency, rates);
       monthlyTotal = monthlyTotal.add(monthlyBase);
       bump(byProvider, s.providerUuid, monthlyBase);
+      bump(byProject, s.projectUuid, monthlyBase);
       bump(byCountry, s.countryCode ?? 'XX', monthlyBase);
       bump(byType, s.type, monthlyBase);
       const c = byCurrency.get(s.currency) ?? { original: ZERO(), base: ZERO(), count: 0 };
@@ -165,6 +168,12 @@ export class AnalyticsService {
         balance: p.balance ? p.balance.toFixed(2) : null,
         balanceCurrency: p.balanceCurrency,
         servicesCount: byProvider.get(p.uuid)?.count ?? 0,
+      })),
+      byProject: projects.map((p) => ({
+        projectUuid: p.uuid,
+        name: p.name,
+        monthlyCost: (byProject.get(p.uuid)?.monthly ?? ZERO()).toFixed(2),
+        servicesCount: byProject.get(p.uuid)?.count ?? 0,
       })),
       byCountry: [...byCountry].map(([countryCode, v]) => ({
         countryCode,

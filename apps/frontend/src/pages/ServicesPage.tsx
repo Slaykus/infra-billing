@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { notifyError, notifySuccess } from '@/utils/notify';
 import { IconEdit, IconMapPin, IconPlus, IconReceipt2, IconTrash } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import type { Period, Service, ServiceType } from '@infra/shared';
+import { DEFAULT_PROJECT_UUID, type Period, type Service, type ServiceType } from '@infra/shared';
 import {
   useCreateService,
   useDeleteService,
@@ -30,11 +30,12 @@ import {
   type ServiceFilter,
 } from '@/api/services';
 import { useProviders } from '@/api/providers';
+import { useProjects } from '@/api/projects';
 import { usePayments } from '@/api/payments';
 import { apiErrorMessage } from '@/api/client';
 import { useEnums } from '@/constants';
 import { countryFlag, formatDateShort, formatMoney, trimMoney } from '@/utils/format';
-import { providerFavicon } from '@/utils/favicon';
+import { projectFavicon, providerFavicon } from '@/utils/favicon';
 import { useCountryOptions } from '@/utils/countries';
 import { ProviderIcon } from '@/components/ProviderIcon';
 
@@ -44,6 +45,7 @@ const LOCATED_TYPES = new Set(['vps', 'dedicated']);
 
 interface SForm {
   providerUuid: string;
+  projectUuid: string;
   name: string;
   type: string;
   cost: string;
@@ -61,6 +63,7 @@ export function ServicesPage() {
   const enums = useEnums();
   const countryOptions = useCountryOptions();
   const { data: providers } = useProviders();
+  const { data: projects } = useProjects();
   const [filter, setFilter] = useState<ServiceFilter>({});
   const { data: services, isLoading } = useServices(filter);
   const create = useCreateService();
@@ -77,10 +80,16 @@ export function ServicesPage() {
 
   const providerOptions = (providers ?? []).map((p) => ({ value: p.uuid, label: p.name }));
   const providerOf = (uuid: string) => providers?.find((p) => p.uuid === uuid);
+  const projectOptions = (projects ?? []).map((p) => ({ value: p.uuid, label: p.name }));
+  const projectOf = (uuid: string) => projects?.find((p) => p.uuid === uuid);
+  // Default a new service to the default project (or the first one).
+  const defaultProjectUuid =
+    projects?.find((p) => p.uuid === DEFAULT_PROJECT_UUID)?.uuid ?? projectOptions[0]?.value ?? '';
 
   const form = useForm<SForm>({
     initialValues: {
       providerUuid: '',
+      projectUuid: '',
       name: '',
       type: 'vps',
       cost: '',
@@ -102,6 +111,7 @@ export function ServicesPage() {
     setEditing(null);
     form.setValues({
       providerUuid: providerOptions[0]?.value ?? '',
+      projectUuid: defaultProjectUuid,
       name: '',
       type: 'vps',
       cost: '',
@@ -118,6 +128,7 @@ export function ServicesPage() {
     setEditing(s);
     form.setValues({
       providerUuid: s.providerUuid,
+      projectUuid: s.projectUuid,
       name: s.name,
       type: s.type,
       cost: s.cost,
@@ -137,6 +148,7 @@ export function ServicesPage() {
           uuid: editing.uuid,
           dto: {
             providerUuid: v.providerUuid,
+            projectUuid: v.projectUuid,
             name: v.name,
             type: v.type as ServiceType,
             cost: trimMoney(v.cost),
@@ -150,6 +162,7 @@ export function ServicesPage() {
       } else {
         await create.mutateAsync({
           providerUuid: v.providerUuid,
+          projectUuid: v.projectUuid,
           name: v.name,
           type: v.type as ServiceType,
           cost: trimMoney(v.cost),
@@ -203,6 +216,14 @@ export function ServicesPage() {
           w={220}
         />
         <Select
+          placeholder={t('services.filterAllProjects')}
+          clearable
+          data={projectOptions}
+          value={filter.projectUuid ?? null}
+          onChange={(v) => setFilter((f) => ({ ...f, projectUuid: v ?? undefined }))}
+          w={200}
+        />
+        <Select
           placeholder={t('services.filterAllTypes')}
           clearable
           data={enums.serviceTypeOptions}
@@ -231,6 +252,7 @@ export function ServicesPage() {
             <Table.Tr>
               <Table.Th>{t('services.colName')}</Table.Th>
               <Table.Th>{t('services.colProvider')}</Table.Th>
+              <Table.Th>{t('services.colProject')}</Table.Th>
               <Table.Th>{t('services.colType')}</Table.Th>
               <Table.Th>{t('services.colCost')}</Table.Th>
               <Table.Th>{t('services.colPeriod')}</Table.Th>
@@ -263,6 +285,16 @@ export function ServicesPage() {
                       size={18}
                     />
                     <Text size="sm">{providerOf(s.providerUuid)?.name ?? ''}</Text>
+                  </Group>
+                </Table.Td>
+                <Table.Td>
+                  <Group gap={6} wrap="nowrap">
+                    <ProviderIcon
+                      name={projectOf(s.projectUuid)?.name ?? ''}
+                      src={projectFavicon(projectOf(s.projectUuid)?.faviconLink ?? null)}
+                      size={18}
+                    />
+                    <Text size="sm">{projectOf(s.projectUuid)?.name ?? ''}</Text>
                   </Group>
                 </Table.Td>
                 <Table.Td>{enums.serviceTypeLabel(s.type)}</Table.Td>
@@ -302,7 +334,7 @@ export function ServicesPage() {
             ))}
             {!isLoading && services?.length === 0 && (
               <Table.Tr>
-                <Table.Td colSpan={8}>
+                <Table.Td colSpan={9}>
                   <Text c="dimmed" ta="center" py="md">
                     {t('services.empty')}
                   </Text>
@@ -328,6 +360,12 @@ export function ServicesPage() {
               disabled={Boolean(editing?.isManaged)}
               description={editing?.isManaged ? t('services.providerLockedHint') : undefined}
               {...form.getInputProps('providerUuid')}
+            />
+            <Select
+              label={t('services.fieldProject')}
+              data={projectOptions}
+              allowDeselect={false}
+              {...form.getInputProps('projectUuid')}
             />
             <TextInput label={t('services.fieldName')} required {...form.getInputProps('name')} />
             <Group grow>

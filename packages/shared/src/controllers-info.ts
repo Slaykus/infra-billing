@@ -2,6 +2,7 @@ export const CONTROLLERS_INFO = {
   AUTH: { TAG: 'Auth', DESCRIPTION: 'Admin login, session and passkeys (session-only)' },
   API_TOKENS: { TAG: 'API Tokens', DESCRIPTION: 'Create and revoke API tokens (session-only)' },
   PROVIDERS: { TAG: 'Providers', DESCRIPTION: 'Hosting provider accounts' },
+  PROJECTS: { TAG: 'Projects', DESCRIPTION: 'Group services by project' },
   SYNC: { TAG: 'Sync', DESCRIPTION: 'Trigger and inspect provider syncs' },
   SERVICES: { TAG: 'Services', DESCRIPTION: 'Paid resources at providers' },
   PAYMENTS: { TAG: 'Payments', DESCRIPTION: 'Log of actual payments' },

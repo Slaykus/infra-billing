@@ -12,6 +12,7 @@ export class ServicesService {
   async list(query: ServiceQueryDto): Promise<ServiceDto[]> {
     const where: Prisma.ServiceWhereInput = {};
     if (query.providerUuid) where.providerUuid = query.providerUuid;
+    if (query.projectUuid) where.projectUuid = query.projectUuid;
     if (query.type) where.type = query.type;
     if (query.isActive !== undefined) where.isActive = query.isActive;
     const rows = await this.prisma.service.findMany({
@@ -24,9 +25,11 @@ export class ServicesService {
 
   async create(dto: CreateServiceDto): Promise<ServiceDto> {
     await this.ensureProvider(dto.providerUuid);
+    await this.ensureProject(dto.projectUuid);
     const s = await this.prisma.service.create({
       data: {
         providerUuid: dto.providerUuid,
+        projectUuid: dto.projectUuid,
         name: dto.name,
         type: dto.type,
         cost: dto.cost,
@@ -67,6 +70,10 @@ export class ServicesService {
       data.nextBillingAt = dto.nextBillingAt ? new Date(dto.nextBillingAt) : null;
     }
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
+    if (dto.projectUuid !== undefined) {
+      await this.ensureProject(dto.projectUuid);
+      data.project = { connect: { uuid: dto.projectUuid } };
+    }
 
     // Provider can only change for manual services: a synced one is matched by
     // (providerUuid, externalId), so moving it would orphan it from sync.
@@ -108,5 +115,10 @@ export class ServicesService {
       select: { uuid: true },
     });
     if (!found) throw new NotFoundException('Provider not found');
+  }
+
+  private async ensureProject(uuid: string): Promise<void> {
+    const found = await this.prisma.project.findUnique({ where: { uuid }, select: { uuid: true } });
+    if (!found) throw new NotFoundException('Project not found');
   }
 }

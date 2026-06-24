@@ -10,11 +10,12 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useForecast, useSummary } from '@/api/analytics';
 import { useProviders } from '@/api/providers';
+import { useProjects } from '@/api/projects';
 import { StatCard } from '@/components/StatCard';
 import { ProviderIcon } from '@/components/ProviderIcon';
 import { useEnums } from '@/constants';
 import { formatDateShort, formatMoney } from '@/utils/format';
-import { providerFavicon } from '@/utils/favicon';
+import { projectFavicon, providerFavicon } from '@/utils/favicon';
 
 const COLORS = ['brand.6', 'teal.6', 'blue.6', 'orange.6', 'pink.6', 'grape.6', 'cyan.6', 'lime.6'];
 
@@ -27,7 +28,10 @@ export function DashboardPage() {
   const { data: summary, isLoading } = useSummary();
   const { data: forecast } = useForecast(6);
   const { data: providers } = useProviders();
+  const { data: projectsList } = useProjects();
   const providerOf = (uuid: string) => providers?.find((p) => p.uuid === uuid);
+  const projectIconOf = (uuid: string) =>
+    projectFavicon(projectsList?.find((p) => p.uuid === uuid)?.faviconLink ?? null);
 
   const dayLabel = (n: number) =>
     n <= 0
@@ -54,6 +58,16 @@ export function DashboardPage() {
   const providerRows = [...(summary?.byProvider ?? [])].sort(
     (a, b) => Number(b.spent) - Number(a.spent),
   );
+  const projectRows = [...(summary?.byProject ?? [])].sort(
+    (a, b) => Number(b.monthlyCost) - Number(a.monthlyCost),
+  );
+  const projectDonut = projectRows
+    .filter((p) => Number(p.monthlyCost) > 0)
+    .map((p, i) => ({
+      name: p.name,
+      value: Number(p.monthlyCost),
+      color: COLORS[i % COLORS.length],
+    }));
 
   return (
     <Stack gap="lg">
@@ -161,6 +175,61 @@ export function DashboardPage() {
           )}
         </Card>
       </SimpleGrid>
+
+      <Card withBorder radius="md" padding="lg">
+        <Text fw={600} mb="md">
+          {t('dashboard.byProject.title', { base })}
+        </Text>
+        {projectRows.length > 0 ? (
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+            {projectDonut.length > 0 && (
+              <Group justify="center">
+                <DonutChart
+                  data={projectDonut}
+                  withTooltip
+                  size={180}
+                  thickness={28}
+                  strokeWidth={0}
+                  valueFormatter={chartMoney}
+                />
+              </Group>
+            )}
+            <Table verticalSpacing="xs">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>{t('dashboard.byProject.colProject')}</Table.Th>
+                  <Table.Th ta="end">{t('dashboard.byProject.colServices')}</Table.Th>
+                  <Table.Th ta="end">{t('dashboard.byProject.colMonthly', { base })}</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {projectRows.map((p) => (
+                  <Table.Tr key={p.projectUuid}>
+                    <Table.Td>
+                      <Group gap={8} wrap="nowrap">
+                        <ProviderIcon name={p.name} src={projectIconOf(p.projectUuid)} size={18} />
+                        <Text size="sm" fw={500}>
+                          {p.name}
+                        </Text>
+                      </Group>
+                    </Table.Td>
+                    <Table.Td ta="end">{p.servicesCount}</Table.Td>
+                    <Table.Td ta="end" style={{ whiteSpace: 'nowrap' }}>
+                      <Text size="sm" fw={600}>
+                        {formatMoney(p.monthlyCost, base)}
+                      </Text>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </SimpleGrid>
+        ) : (
+          <Text c="dimmed" size="sm">
+            {isLoading ? t('common.loading') : t('dashboard.empty.noServices')}
+          </Text>
+        )}
+      </Card>
 
       <Card withBorder radius="md" padding="lg">
         <Text fw={600} mb="md">

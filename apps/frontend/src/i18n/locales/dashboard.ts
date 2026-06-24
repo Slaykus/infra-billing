@@ -19,6 +19,12 @@ export const dashboard = {
       forecast: 'Charge forecast ({{base}})',
       forecastSeries: 'Forecast',
     },
+    byProject: {
+      title: 'Spending by project ({{base}})',
+      colProject: 'Project',
+      colServices: 'Services',
+      colMonthly: 'Monthly ({{base}})',
+    },
     byProvider: {
       title: 'Spending by provider',
       colProvider: 'Provider',
@@ -61,6 +67,12 @@ export const dashboard = {
       byType: 'Расходы по типам ({{base}}/мес)',
       forecast: 'Прогноз списаний ({{base}})',
       forecastSeries: 'Прогноз',
+    },
+    byProject: {
+      title: 'Расходы по проектам ({{base}})',
+      colProject: 'Проект',
+      colServices: 'Сервисов',
+      colMonthly: 'В месяц ({{base}})',
     },
     byProvider: {
       title: 'Расходы по провайдерам',

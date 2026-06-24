@@ -12,6 +12,7 @@ import { CryptoModule } from './crypto/crypto.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { ProvidersModule } from './providers/providers.module';
+import { ProjectsModule } from './projects/projects.module';
 import { ServicesModule } from './services/services.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ConnectorsModule } from '@connectors/connectors.module';
@@ -37,6 +38,7 @@ const FRONTEND_DIST = join(__dirname, '..', '..', 'frontend', 'dist');
     ScheduleModule.forRoot(),
     HealthModule,
     ProvidersModule,
+    ProjectsModule,
     ServicesModule,
     PaymentsModule,
     ConnectorsModule,

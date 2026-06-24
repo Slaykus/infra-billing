@@ -17,3 +17,18 @@ export function providerFavicon(p: {
 }): string | null {
   return faviconResolver(p.faviconLink || p.loginUrl);
 }
+
+/**
+ * A project's icon. A direct image URL (has a path, e.g. .../logo.png) is used as-is; a bare domain
+ * is resolved to its site favicon (Google s2), like providers.
+ */
+export function projectFavicon(faviconLink: string | null): string | null {
+  if (!faviconLink) return null;
+  try {
+    const url = new URL(faviconLink.startsWith('http') ? faviconLink : `https://${faviconLink}`);
+    if (url.pathname && url.pathname !== '/') return url.href;
+    return faviconResolver(faviconLink);
+  } catch {
+    return null;
+  }
+}
