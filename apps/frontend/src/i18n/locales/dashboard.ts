@@ -16,8 +16,9 @@ export const dashboard = {
     },
     charts: {
       byType: 'Expenses by type ({{base}}/mo)',
-      forecast: 'Charge forecast ({{base}})',
+      forecast: 'Spend by month ({{base}})',
       forecastSeries: 'Forecast',
+      actualSeries: 'Actual',
     },
     byProject: {
       title: 'Spending by project ({{base}})',
@@ -65,8 +66,9 @@ export const dashboard = {
     },
     charts: {
       byType: 'Расходы по типам ({{base}}/мес)',
-      forecast: 'Прогноз списаний ({{base}})',
+      forecast: 'Расходы по месяцам ({{base}})',
       forecastSeries: 'Прогноз',
+      actualSeries: 'Списано',
     },
     byProject: {
       title: 'Расходы по проектам ({{base}})',

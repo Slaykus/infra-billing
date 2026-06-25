@@ -8,6 +8,7 @@ export class BalancePointDto extends createZodDto(balancePointSchema) {}
 
 export const forecastQuerySchema = z.object({
   months: z.coerce.number().int().positive().max(60).default(12),
+  monthsBack: z.coerce.number().int().nonnegative().max(24).default(3),
 });
 export class ForecastQueryDto extends createZodDto(forecastQuerySchema) {}
 

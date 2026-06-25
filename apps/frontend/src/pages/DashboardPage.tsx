@@ -39,7 +39,7 @@ export function DashboardPage() {
   const { t } = useTranslation();
   const enums = useEnums();
   const { data: summary, isLoading } = useSummary();
-  const { data: forecast } = useForecast(6);
+  const { data: forecast } = useForecast(6, 3);
   const { data: providers } = useProviders();
   const { data: projectsList } = useProjects();
   const providerOf = (uuid: string) => providers?.find((p) => p.uuid === uuid);
@@ -64,7 +64,8 @@ export function DashboardPage() {
     }));
   const forecastData = (forecast ?? []).map((p) => ({
     month: p.month,
-    value: Number(p.projected),
+    actual: Number(p.actual),
+    projected: Number(p.projected),
   }));
   const upcoming = summary?.upcomingBillings ?? [];
   const critical = upcoming.filter((b) => b.severity === 'critical');
@@ -183,8 +184,14 @@ export function DashboardPage() {
               h={200}
               data={forecastData}
               dataKey="month"
+              type="stacked"
               series={[
-                { name: 'value', label: t('dashboard.charts.forecastSeries'), color: 'brand.6' },
+                { name: 'actual', label: t('dashboard.charts.actualSeries'), color: 'brand.6' },
+                {
+                  name: 'projected',
+                  label: t('dashboard.charts.forecastSeries'),
+                  color: 'brand.3',
+                },
               ]}
               valueFormatter={chartMoney}
               yAxisProps={{ tickFormatter: (v: number) => formatMoney(String(v)) }}

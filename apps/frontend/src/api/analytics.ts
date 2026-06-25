@@ -10,11 +10,15 @@ export function useSummary() {
   });
 }
 
-export function useForecast(months = 12) {
+export function useForecast(months = 12, monthsBack = 3) {
   return useQuery({
-    queryKey: ['analytics', 'forecast', months],
+    queryKey: ['analytics', 'forecast', months, monthsBack],
     queryFn: async () =>
-      (await api.get<ForecastPoint[]>(API_PATH.ANALYTICS.FORECAST, { params: { months } })).data,
+      (
+        await api.get<ForecastPoint[]>(API_PATH.ANALYTICS.FORECAST, {
+          params: { months, monthsBack },
+        })
+      ).data,
   });
 }
 

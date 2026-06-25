@@ -21,6 +21,6 @@ export class AnalyticsController {
   @ApiOkResponse({ type: [ForecastPointDto] })
   @Get(API_SUB.ANALYTICS_FORECAST)
   forecast(@Query() query: ForecastQueryDto) {
-    return this.analytics.forecast(query.months);
+    return this.analytics.forecast(query.months, query.monthsBack);
   }
 }

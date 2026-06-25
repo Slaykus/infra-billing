@@ -251,23 +251,48 @@ export class AnalyticsService {
     };
   }
 
-  async forecast(months: number): Promise<ForecastPoint[]> {
+  async forecast(months: number, monthsBack: number): Promise<ForecastPoint[]> {
     const { baseCurrency } = await this.currency.getEffectiveSettings();
     const rates = await this.currency.getRubRates();
+
+    const current = dayjs().startOf('month');
+    const currentKey = current.format('YYYY-MM');
+    const windowStart = current.subtract(monthsBack, 'month');
+    const totalMonths = monthsBack + 1 + months; // past + current + future
+
+    const monthsList: string[] = [];
+    const actualBuckets = new Map<string, Decimal>();
+    const projBuckets = new Map<string, Decimal>();
+    for (let i = 0; i < totalMonths; i += 1) {
+      const key = windowStart.add(i, 'month').format('YYYY-MM');
+      monthsList.push(key);
+      actualBuckets.set(key, ZERO());
+      projBuckets.set(key, ZERO());
+    }
+
+    // Actuals: real charges (Selectel consumption, BILLmanager expenses, …) summed per month for
+    // past + current months. These rows are excluded from KPI totals (§ summary), so no double count.
+    const charges = await this.prisma.payment.findMany({
+      where: { type: 'charge', paymentDate: { gte: windowStart.toDate() } },
+    });
+    for (const p of charges) {
+      const key = dayjs(p.paymentDate).format('YYYY-MM');
+      if (!actualBuckets.has(key) || key > currentKey) continue; // future-dated charges ignored
+      const base = this.currency.convert(
+        new Decimal(p.amount.toString()),
+        p.currency,
+        baseCurrency,
+        rates,
+      );
+      actualBuckets.set(key, actualBuckets.get(key)!.add(base));
+    }
+
+    // Projection: recurring services billed strictly in the future (current month shows actuals only).
     const services = await this.prisma.service.findMany({
       where: { isActive: true, nextBillingAt: { not: null } },
     });
-
-    const start = dayjs().startOf('month');
-    const end = start.add(months, 'month');
-    const monthsList: string[] = [];
-    const buckets = new Map<string, Decimal>();
-    for (let i = 0; i < months; i += 1) {
-      const key = start.add(i, 'month').format('YYYY-MM');
-      monthsList.push(key);
-      buckets.set(key, ZERO());
-    }
-
+    const projStart = current.add(1, 'month');
+    const projEnd = current.add(months + 1, 'month');
     for (const s of services) {
       const charge = this.currency.convert(
         new Decimal(s.cost.toString()),
@@ -279,24 +304,30 @@ export class AnalyticsService {
       let d = dayjs(s.nextBillingAt!);
       if (!step) {
         const key = d.format('YYYY-MM');
-        if (buckets.has(key)) buckets.set(key, buckets.get(key)!.add(charge));
+        if (projBuckets.has(key) && !d.isBefore(projStart)) {
+          projBuckets.set(key, projBuckets.get(key)!.add(charge));
+        }
         continue;
       }
       let guard = 0;
-      while (d.isBefore(start) && guard < 5000) {
+      while (d.isBefore(projStart) && guard < 5000) {
         d = d.add(step.n, step.u);
         guard += 1;
       }
       guard = 0;
-      while (d.isBefore(end) && guard < 5000) {
+      while (d.isBefore(projEnd) && guard < 5000) {
         const key = d.format('YYYY-MM');
-        if (buckets.has(key)) buckets.set(key, buckets.get(key)!.add(charge));
+        if (projBuckets.has(key)) projBuckets.set(key, projBuckets.get(key)!.add(charge));
         d = d.add(step.n, step.u);
         guard += 1;
       }
     }
 
-    return monthsList.map((m) => ({ month: m, projected: buckets.get(m)!.toFixed(2) }));
+    return monthsList.map((m) => ({
+      month: m,
+      actual: actualBuckets.get(m)!.toFixed(2),
+      projected: projBuckets.get(m)!.toFixed(2),
+    }));
   }
 
   async balanceHistory(uuid: string, from?: Date, to?: Date): Promise<BalancePoint[]> {

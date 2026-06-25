@@ -98,8 +98,9 @@ export const analyticsSummarySchema = z.object({
 export type AnalyticsSummary = z.infer<typeof analyticsSummarySchema>;
 
 export const forecastPointSchema = z.object({
-  month: z.string().describe('Forecast month'),
-  projected: moneySchema.describe('Projected cost'),
+  month: z.string().describe('Month'),
+  projected: moneySchema.describe('Projected cost (future months)'),
+  actual: moneySchema.describe('Actual charges (past/current months)'),
 });
 export type ForecastPoint = z.infer<typeof forecastPointSchema>;
 
