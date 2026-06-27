@@ -136,14 +136,77 @@ export class BillmgrConnector implements Connector {
     return data?.doc?.auth?.$id ?? auth;
   }
 
-  private async call(func: string, signal: AbortSignal): Promise<BillmgrDoc> {
+  private async call(
+    func: string,
+    signal: AbortSignal,
+    extra?: Record<string, string>,
+  ): Promise<BillmgrDoc> {
     const auth = await this.ensureSession(signal);
     const { data } = await this.http.get<BillmgrDoc>('', {
-      params: { func, auth, out: 'json' },
+      params: { func, auth, out: 'json', ...extra },
       signal,
     });
     if (data?.doc?.error) throw new Error(`BILLmanager (${func}): ${billmgrError(data.doc.error)}`);
     return data;
+  }
+
+  /**
+   * Page through a BILLmanager list func, accumulating doc.elem rows. Lists paginate with
+   * p_num/p_cnt and report the total in p_elems; request a large page and stop at the last one.
+   */
+  private async listAll(
+    func: string,
+    signal: AbortSignal,
+    extra?: Record<string, string>,
+  ): Promise<Record<string, unknown>[]> {
+    const PAGE = 1000;
+    const rows: Record<string, unknown>[] = [];
+    for (let page = 1; page <= 50; page += 1) {
+      const data = await this.call(func, signal, {
+        ...extra,
+        p_cnt: String(PAGE),
+        p_num: String(page),
+      });
+      const batch = asArray(data?.doc?.elem) as Record<string, unknown>[];
+      rows.push(...batch);
+      const total = Number(val(data?.doc?.p_elems));
+      if (batch.length < PAGE || (Number.isFinite(total) && rows.length >= total)) break;
+    }
+    return rows;
+  }
+
+  /**
+   * BILLmanager's expense report carries a sticky, account-level filter (e.g. "Service ID = 388",
+   * set when a single service's charges were opened in the panel). Left in place it hides every
+   * other service's charges, so we reset it before listing — otherwise only the filtered service
+   * gets its expenses imported. The filter only APPLIES when the form is submitted normally; with
+   * out=json BILLmanager just echoes the form back without saving, so this POST omits out=json.
+   * Best-effort: if the reset fails we fall back to whatever filter is currently set.
+   */
+  private async clearExpenseFilter(signal: AbortSignal): Promise<void> {
+    try {
+      const auth = await this.ensureSession(signal);
+      const body = new URLSearchParams({
+        func: 'expense.filter',
+        auth,
+        sok: 'ok',
+        item: '',
+        id: '',
+        locale_name: '',
+        fromdate: '',
+        todate: '',
+        amount: '',
+        compare_type: 'null',
+        notpayd_compare_type: 'null',
+        notpayd_amount: '',
+      });
+      await this.http.post('', body.toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        signal,
+      });
+    } catch {
+      // best-effort — a failed reset just leaves the current filter in place
+    }
   }
 
   async fetchAccount(signal: AbortSignal): Promise<Account> {
@@ -179,16 +242,22 @@ export class BillmgrConnector implements Connector {
   /**
    * BILLmanager exposes a ledger: func=payment (top-ups/payments) and func=expense (charges
    * for services). We import both — payments as `topup`, expenses as `charge` linked to the parent
-   * service via `main_item`. Each ledger is best-effort (skipped if unavailable on the install).
+   * service via `main_item`. Each ledger is best-effort (skipped if unavailable on the install) and
+   * paged through in full; expenses are read after resetting the sticky per-service filter so every
+   * service's charges come through, not just the one the panel was last filtered to.
    */
   async fetchPayments(signal: AbortSignal): Promise<PaymentData[]> {
     await this.ensureSession(signal);
     const out: PaymentData[] = [];
+    const seen = new Set<string>();
+    const add = (p: PaymentData) => {
+      if (seen.has(p.externalId)) return; // guard against page-boundary duplicates
+      seen.add(p.externalId);
+      out.push(p);
+    };
 
     try {
-      const data = await this.call('payment', signal);
-      for (const raw of asArray(data?.doc?.elem)) {
-        const e = raw as Record<string, unknown>;
+      for (const e of await this.listAll('payment', signal)) {
         const id = val(e.id);
         const amountRaw =
           val(e.paymethodamount_iso) ?? val(e.subaccountamount_iso) ?? val(e.amount);
@@ -202,7 +271,7 @@ export class BillmgrConnector implements Connector {
         // Import only credited top-ups ("Зачислен"/"Paid"); skip "Новый"/"Отменён". Refunds carry
         // no status (money already returned), so they bypass the check.
         if (!isRefund && !isPaymentCredited(val(e.status))) continue;
-        out.push({
+        add({
           externalId: `payment:${id}`,
           type: 'topup',
           amount: new Decimal(amountStr).mul(sign),
@@ -216,14 +285,14 @@ export class BillmgrConnector implements Connector {
     }
 
     try {
-      const data = await this.call('expense', signal);
-      for (const raw of asArray(data?.doc?.elem)) {
-        const e = raw as Record<string, unknown>;
+      // Drop the sticky per-service filter first, otherwise we only see one service's charges.
+      await this.clearExpenseFilter(signal);
+      for (const e of await this.listAll('expense', signal)) {
         const id = val(e.id);
         const amountStr = firstNumber(val(e.amount));
         const date = parseBillmgrDate(val(e.realdate) ?? val(e.realdate_l));
         if (!id || amountStr == null || !date) continue;
-        out.push({
+        add({
           externalId: `expense:${id}`,
           type: 'charge',
           amount: new Decimal(amountStr),
