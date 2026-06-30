@@ -5,6 +5,8 @@
 хостинг-провайдеров, тянет баланс аккаунта, список ресурсов, тарифы и даты списаний, складывает
 снапшоты и строит аналитику/прогнозы. Провайдеров без API владелец ведёт вручную.
 
+![Дашборд Infra Billing Panel](docs/screenshot.webp)
+
 ## Возможности
 
 - **Провайдеры с API:** Timeweb Cloud, Hetzner Cloud, netcup, HostBill, ISPsystem BILLmanager,
