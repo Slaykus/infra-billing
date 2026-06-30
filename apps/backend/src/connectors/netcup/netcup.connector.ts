@@ -10,11 +10,11 @@ const PAGE_LIMIT = 100;
 const MAX_PAGES = 50;
 
 /**
- * netcup Server Control Panel connector — the new REST API
+ * netcup Server Control Panel connector, the new REST API
  * (https://www.netcup.com/en/helpcenter/documentation/server/rest-api), which replaced
  * the legacy SOAP web service in Oct 2025. No npm SDK, so a thin axios client.
  *
- * Auth: OAuth2 (Keycloak realm `scp`). The API has no static API key — the owner runs the
+ * Auth: OAuth2 (Keycloak realm `scp`). The API has no static API key. The owner runs the
  * device-code flow once (in a browser, passing any 2FA there) and pastes the resulting
  * offline refresh token; we exchange it for a short-lived access token each sync via
  * `grant_type=refresh_token`.

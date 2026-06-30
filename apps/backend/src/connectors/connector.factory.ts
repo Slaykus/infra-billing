@@ -26,7 +26,7 @@ import { VultrConnector } from './vultr/vultr.connector';
 export class ConnectorFactory {
   /**
    * Build a connector for a syncable provider kind. Throws for unknown kinds and
-   * for `manual` (manual providers are not synced — the sync skips them upstream).
+   * for `manual` (manual providers are not synced; the sync skips them upstream).
    */
   create(kind: string, token: string): Connector {
     switch (kind) {

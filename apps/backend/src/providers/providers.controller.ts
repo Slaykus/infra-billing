@@ -54,7 +54,7 @@ export class ProvidersController {
     return this.providers.create(dto);
   }
 
-  // netcup OAuth2 device flow — declared before the `:uuid` routes (static path, no collision).
+  // netcup OAuth2 device flow. Declared before the `:uuid` routes (static path, no collision).
   @Post(API_SUB.PROVIDER_NETCUP_DEVICE_START)
   @ApiOperation({ summary: 'Start netcup device flow' })
   @ApiOkResponse({ type: NetcupDeviceStartDto })

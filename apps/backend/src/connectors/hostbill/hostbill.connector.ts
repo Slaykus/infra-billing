@@ -20,7 +20,7 @@ import {
 /**
  * HostBill User API connector (https://hostbill.atlassian.net/wiki/...). Each install
  * lives on its own domain and the API base path varies (e.g. /api), so the base URL is
- * configured per provider. Auth: JWT — POST /login (username=email + password) → token,
+ * configured per provider. Auth: JWT, POST /login (username=email + password) → token,
  * then Bearer on each request (Basic auth isn't enabled on all installs). No npm SDK.
  * Balance: GET /balance (acc_credit). Services: GET /service. Billing is per-cycle.
  */
@@ -65,7 +65,7 @@ export class HostbillConnector implements Connector {
     const headers = await this.authHeaders(signal);
     const { data } = await this.http.get<BalanceResponse>('balance', { headers, signal });
     const d = data?.details ?? {};
-    // /balance frequently returns an empty currency — fall back to the account's
+    // /balance frequently returns an empty currency. Fall back to the account's
     // real currency from invoices (e.g. TRY), not a blanket USD.
     let currency = normalizeCurrency(d.currency, ''); // '' = unknown
     if (!currency) {
@@ -88,7 +88,7 @@ export class HostbillConnector implements Connector {
         if (c) return c;
       }
     } catch {
-      // best-effort — a failing /invoice must not break balance sync
+      // best-effort: a failing /invoice must not break balance sync
     }
     return null;
   }

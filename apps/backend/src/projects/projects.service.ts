@@ -46,10 +46,10 @@ export class ProjectsService {
     return { moved: count };
   }
 
-  /** Empty this project — move its services to the default project (services are never deleted). */
+  /** Empty this project: move its services to the default project (services are never deleted). */
   async empty(uuid: string): Promise<BulkMoveResult> {
     await this.ensureExists(uuid);
-    if (uuid === DEFAULT_PROJECT_UUID) return { moved: 0 }; // already the sink — nothing to do
+    if (uuid === DEFAULT_PROJECT_UUID) return { moved: 0 }; // already the sink, nothing to do
     const { count } = await this.prisma.service.updateMany({
       where: { projectUuid: uuid },
       data: { projectUuid: DEFAULT_PROJECT_UUID },
@@ -62,7 +62,7 @@ export class ProjectsService {
       throw new BadRequestException('The default project cannot be deleted');
     }
     await this.ensureExists(uuid);
-    // onDelete is Restrict — move this project's services to the default project before deleting.
+    // onDelete is Restrict, so move this project's services to the default project before deleting.
     await this.prisma.$transaction([
       this.prisma.service.updateMany({
         where: { projectUuid: uuid },

@@ -66,7 +66,7 @@ function SetupForm() {
     },
   });
 
-  // clipboard.writeText needs a secure context (https/localhost) — if it fails, tell the owner
+  // clipboard.writeText needs a secure context (https/localhost). If it fails, tell the owner
   // to copy manually instead of claiming a copy that didn't happen.
   const generate = async () => {
     const password = generatePassword();

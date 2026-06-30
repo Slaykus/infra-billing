@@ -54,12 +54,12 @@ export class SyncService implements OnModuleInit {
     try {
       this.scheduler.deleteInterval(SYNC_INTERVAL_NAME);
     } catch {
-      // not scheduled yet (first run) — nothing to clear
+      // not scheduled yet (first run), nothing to clear
     }
     this.intervalMs = hours * 3_600_000;
     const interval = setInterval(() => {
       void this.syncAllProviders();
-      // The timer just fired — the next tick is one interval out.
+      // The timer just fired. The next tick is one interval out.
       this.nextRunAt = new Date(Date.now() + this.intervalMs);
     }, this.intervalMs);
     this.scheduler.addInterval(SYNC_INTERVAL_NAME, interval);
@@ -202,7 +202,7 @@ export class SyncService implements OnModuleInit {
         await this.prisma.service.create({
           data: {
             providerUuid,
-            // Providers are shared, so a sync can't know the project — land new services in the
+            // Providers are shared, so a sync can't know the project. Land new services in the
             // default project; the owner reassigns them on the Services page.
             projectUuid: DEFAULT_PROJECT_UUID,
             externalId: sd.externalId,
@@ -249,7 +249,7 @@ export class SyncService implements OnModuleInit {
   }
 
   /**
-   * Upsert imported payments by (providerUuid, externalId) — idempotent across re-syncs, and
+   * Upsert imported payments by (providerUuid, externalId): idempotent across re-syncs, and
    * never touches manually-entered payments (those have externalId = null). Charges are linked
    * to a service when their serviceExternalId matches a managed service's externalId.
    */

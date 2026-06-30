@@ -114,7 +114,7 @@ export class AuthConfigService {
   async getSessionSecret(): Promise<string> {
     if (this.cachedSecret) return this.cachedSecret;
     const row = await this.getRow();
-    // Pre-setup: there are no real sessions yet — hand out a throwaway secret (not cached).
+    // Pre-setup: there are no real sessions yet. Hand out a throwaway secret (not cached).
     if (!row) return randomBytes(32).toString('hex');
     if (row.sessionSecretEnc) {
       this.cachedSecret = this.crypto.decrypt(row.sessionSecretEnc);

@@ -13,7 +13,7 @@ export function useTokens() {
 export function useCreateToken() {
   const qc = useQueryClient();
   return useMutation({
-    // The create response carries the raw token once — the caller shows it, then it's gone.
+    // The create response carries the raw token once. The caller shows it, then it's gone.
     mutationFn: async (dto: CreateApiToken) =>
       (await api.post<CreatedApiToken>(API_PATH.TOKENS.ROOT, dto)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tokens'] }),

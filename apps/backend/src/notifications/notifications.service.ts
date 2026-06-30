@@ -34,15 +34,15 @@ export class NotificationsService {
     const summary = await this.analytics.summary();
     let sent = 0;
 
-    // 1) Low balance — a service whose imminent charge the provider balance won't cover
-    //    (severity "critical": uncovered + due within ~a week — same definition as the dashboard).
+    // 1) Low balance: a service whose imminent charge the provider balance won't cover
+    //    (severity "critical": uncovered + due within ~a week, same definition as the dashboard).
     for (const ub of summary.upcomingBillings) {
       if (ub.severity !== 'critical') continue;
       const html = lowBalanceMessage(ub, summary.baseCurrency);
       if (await this.maybeSend(`low-balance:${ub.serviceUuid}`, html)) sent += 1;
     }
 
-    // 1b) Low runway — a prepaid provider (no dated charge) whose balance is estimated to drain
+    // 1b) Low runway: a prepaid provider (no dated charge) whose balance is estimated to drain
     //     within ~3 days (severity "critical": same threshold as the dashboard runway card).
     for (const r of summary.balanceRunway) {
       if (r.severity !== 'critical') continue;

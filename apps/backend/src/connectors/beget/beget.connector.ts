@@ -20,8 +20,8 @@ const TWO_FACTOR_MESSAGE =
   'secret in the provider settings so the sync can generate the one-time code itself.';
 
 /**
- * Beget connector — verified live. TWO APIs on api.beget.com:
- *  - new Cloud API (/v1/*): JWT auth — POST /v1/auth, ACCOUNT login+password → { token }, then
+ * Beget connector, verified live. TWO APIs on api.beget.com:
+ *  - new Cloud API (/v1/*): JWT auth, POST /v1/auth, ACCOUNT login+password → { token }, then
  *    `Authorization: Bearer <jwt>` (mixed-case "Bearer"; "BEARER" 500s). Lists VPS
  *    (/v1/vps/server/list) and cloud services (/v1/cloud: DB/S3/CDN/Network Drive), RUB. No balance,
  *    no next-billing date.
@@ -38,7 +38,7 @@ export class BegetConnector implements Connector {
   constructor(creds: BegetCredentials) {
     this.creds = creds;
     this.http = axios.create({ baseURL: BASE_URL, timeout: REQUEST_TIMEOUT_MS });
-    // New-API errors carry the reason in the `x-error-result` header with an empty body — surface it.
+    // New-API errors carry the reason in the `x-error-result` header with an empty body. Surface it.
     this.http.interceptors.response.use(undefined, (e) => {
       if (axios.isAxiosError(e)) {
         const xer = e.response?.headers?.['x-error-result'];

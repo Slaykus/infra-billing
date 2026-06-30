@@ -5,5 +5,5 @@ export class CreateApiTokenDto extends createZodDto(createApiTokenSchema) {}
 
 export class ApiTokenDto extends createZodDto(apiTokenSchema) {}
 
-// Create response — includes the raw token (returned once).
+// Create response: includes the raw token (returned once).
 export class CreatedApiTokenDto extends createZodDto(createdApiTokenSchema) {}

@@ -34,7 +34,7 @@ export function mapNetlenServer(s: NetlenServer): ServiceData {
 export function mapNetlenTransaction(t: NetlenTransaction): PaymentData | null {
   if (t.status && t.status !== 'success') return null;
   // `/balance` reports `total_refunds`, but no refund row appeared in the live ledger, so the
-  // refund `type` string is unknown — we don't invent it. Such a row currently falls through to
+  // refund `type` string is unknown. We don't invent it. Such a row currently falls through to
   // null (skipped), which means a refund would NOT reduce spend. Once the real type is confirmed
   // live, map it to a negated `topup` (cf. BILLmanager `return/...` in billmgr.connector.ts).
   const type = t.type === 'deposit' ? 'topup' : t.type === 'withdraw' ? 'charge' : null;

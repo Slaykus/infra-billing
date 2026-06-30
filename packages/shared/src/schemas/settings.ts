@@ -8,7 +8,7 @@ export const settingsSchema = z.object({
   // When the next scheduled autosync will run (read-only; not part of the update payload).
   nextSyncAt: isoDateSchema.describe('Next scheduled autosync').nullable(),
   rateSource: rateSourceSchema.describe('Exchange rate source'),
-  // Telegram notifications. The bot token is NEVER returned — only whether it's set.
+  // Telegram notifications. The bot token is NEVER returned. Only whether it's set.
   notificationsEnabled: z.boolean().describe('Telegram notifications enabled'),
   upcomingBillingDays: z
     .number()

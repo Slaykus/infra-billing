@@ -31,7 +31,7 @@ export const byProjectSchema = z.object({
   servicesCount: z.number().int().describe('Number of services'),
 });
 
-/** A provider's contribution within a single project (no balance/spend — those are account-level). */
+/** A provider's contribution within a single project (no balance/spend; those are account-level). */
 export const projectProviderStatSchema = z.object({
   providerUuid: uuidSchema.describe('Provider UUID'),
   name: z.string().describe('Provider name'),
@@ -68,7 +68,7 @@ export const upcomingBillingSchema = z.object({
   serviceUuid: uuidSchema.describe('Service UUID'),
   name: z.string().describe('Service name'),
   providerName: z.string().describe('Provider name'),
-  // Provider cabinet link (loginUrl) — used to deeplink the provider in Telegram alerts.
+  // Provider cabinet link (loginUrl), used to deeplink the provider in Telegram alerts.
   providerLoginUrl: z.string().describe('Provider cabinet link').nullable(),
   nextBillingAt: isoDateSchema.describe('Next billing date'),
   cost: moneySchema.describe('Cost in service currency'),

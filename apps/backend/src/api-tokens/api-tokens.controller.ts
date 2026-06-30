@@ -21,7 +21,7 @@ import { SessionOnly } from '../auth/session-only.decorator';
 import { ApiTokensService } from './api-tokens.service';
 import { ApiTokenDto, CreateApiTokenDto, CreatedApiTokenDto } from './dto/api-token.dto';
 
-// Session-only: API tokens can't manage API tokens — only the admin login (cookie) can.
+// Session-only: API tokens can't manage API tokens. Only the admin login (cookie) can.
 @ApiTags(CONTROLLERS_INFO.API_TOKENS.TAG)
 @ApiBearerAuth()
 @SessionOnly()

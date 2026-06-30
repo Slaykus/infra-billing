@@ -1,5 +1,5 @@
 // Vultr API v2 response shapes (https://api.vultr.com/v2). Only consumed fields are typed.
-// Money is always USD. Lists use cursor pagination — the next cursor lives in `meta.links.next`
+// Money is always USD. Lists use cursor pagination. The next cursor lives in `meta.links.next`
 // (empty string when there are no more pages).
 
 /** Cursor envelope shared by every paginated list endpoint. */

@@ -1,4 +1,4 @@
-// Single source of truth for API route paths — shared by NestJS controllers and the frontend
+// Single source of truth for API route paths, shared by NestJS controllers and the frontend
 // axios client, so the route structure stays in sync. Everything is mounted under API_PREFIX
 // (backend: app.setGlobalPrefix; frontend: axios baseURL), so the paths below are prefix-relative.
 //

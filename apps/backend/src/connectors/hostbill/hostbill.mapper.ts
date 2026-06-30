@@ -60,7 +60,7 @@ export function mapHostbillService(s: HostbillService): ServiceData {
 
 /**
  * Map a PAID HostBill invoice to a payment (type=topup, dated by datepaid). Returns null for
- * unpaid invoices or ones without a usable date — they aren't payment facts. HostBill exposes no
+ * unpaid invoices or ones without a usable date. They aren't payment facts. HostBill exposes no
  * per-service breakdown, so payments stay provider-level (no serviceExternalId).
  */
 export function invoiceToPayment(inv: HostbillInvoice): PaymentData | null {

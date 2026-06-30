@@ -38,7 +38,7 @@ export const authConfigSchema = z.object({
 });
 export type AuthConfig = z.infer<typeof authConfigSchema>;
 
-// Username is set once at setup and is immutable afterwards — it's intentionally not updatable here.
+// Username is set once at setup and is immutable afterwards. It's intentionally not updatable here.
 export const updateAuthConfigSchema = z.object({
   passwordEnabled: z.boolean().describe('Enable password login').optional(),
   passkeyEnabled: z.boolean().describe('Enable passkey login').optional(),

@@ -30,7 +30,7 @@ export function TokensPage() {
   const create = useCreateToken();
   const del = useDeleteToken();
   const [opened, { open, close }] = useDisclosure(false);
-  // The raw token, captured from the create response — shown once, then cleared.
+  // The raw token, captured from the create response. Shown once, then cleared.
   const [created, setCreated] = useState<CreatedApiToken | null>(null);
 
   const form = useForm<{ tokenName: string }>({
@@ -47,7 +47,7 @@ export function TokensPage() {
     try {
       const res = await create.mutateAsync({ tokenName: v.tokenName.trim() });
       close();
-      setCreated(res); // open the one-time reveal — the raw token isn't recoverable afterwards
+      setCreated(res); // open the one-time reveal. The raw token isn't recoverable afterwards
     } catch (e) {
       notifyError(apiErrorMessage(e));
     }

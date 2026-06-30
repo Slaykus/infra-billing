@@ -19,7 +19,7 @@ export function asArray(raw: unknown): unknown[] {
   return Array.isArray(raw) ? raw : raw ? [raw] : [];
 }
 
-// Currency from an amount string like "5.00 $" / "49.99 руб." — strip the number, keep the symbol.
+// Currency from an amount string like "5.00 $" / "49.99 руб.": strip the number, keep the symbol.
 export function currencyFromAmount(s: string | undefined): string {
   return normalizeCurrency((s ?? '').replace(/[\d.,\s+-]/g, ''));
 }

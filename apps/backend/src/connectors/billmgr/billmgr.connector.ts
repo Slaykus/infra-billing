@@ -82,8 +82,8 @@ export class BillmgrConnector implements Connector {
 
     // The session id alone doesn't prove the session is usable: with 2FA enabled, func=auth
     // returns an id but the session is unconfirmed, and whoami (like every data func) comes
-    // back as `doc.ok` (a redirect to the one-time-code form) with no `user`. Verify here —
-    // and reuse this probe in fetchAccount — so we never report a green sync with 0 services.
+    // back as `doc.ok` (a redirect to the one-time-code form) with no `user`. Verify here,
+    // and reuse this probe in fetchAccount, so we never report a green sync with 0 services.
     let probe = await this.http.get<BillmgrDoc>('', {
       params: { func: 'whoami', auth: id, out: 'json' },
       signal,
@@ -96,7 +96,7 @@ export class BillmgrConnector implements Connector {
       // 2FA pending. With an OTP secret we generate the code and confirm the session; without
       // one we can't supply the rotating code, so fail with guidance instead of 0 services.
       if (!this.creds.totpSecret) throw new Error(TWO_FACTOR_MESSAGE);
-      // Confirmation returns a NEW, fully-authorized session id — the original one stays
+      // Confirmation returns a NEW, fully-authorized session id. The original one stays
       // half-privileged ("insufficient privileges"), so we must switch to the new id.
       sessionId = await this.confirmTotp(id, signal);
       probe = await this.http.get<BillmgrDoc>('', {
@@ -178,7 +178,7 @@ export class BillmgrConnector implements Connector {
   /**
    * BILLmanager's expense report carries a sticky, account-level filter (e.g. "Service ID = 388",
    * set when a single service's charges were opened in the panel). Left in place it hides every
-   * other service's charges, so we reset it before listing — otherwise only the filtered service
+   * other service's charges, so we reset it before listing. Otherwise only the filtered service
    * gets its expenses imported. The filter only APPLIES when the form is submitted normally; with
    * out=json BILLmanager just echoes the form back without saving, so this POST omits out=json.
    * Best-effort: if the reset fails we fall back to whatever filter is currently set.
@@ -205,7 +205,7 @@ export class BillmgrConnector implements Connector {
         signal,
       });
     } catch {
-      // best-effort — a failed reset just leaves the current filter in place
+      // best-effort: a failed reset just leaves the current filter in place
     }
   }
 
@@ -222,7 +222,7 @@ export class BillmgrConnector implements Connector {
   }
 
   async fetchServices(signal: AbortSignal): Promise<ServiceData[]> {
-    // Establish (and validate) the session up front so an auth/2FA failure propagates —
+    // Establish (and validate) the session up front so an auth/2FA failure propagates,
     // otherwise the per-func catch below would swallow it and silently return 0 services.
     await this.ensureSession(signal);
     const out: ServiceData[] = [];
@@ -231,7 +231,7 @@ export class BillmgrConnector implements Connector {
       try {
         data = await this.call(func, signal);
       } catch {
-        continue; // a type unavailable on this install — skip
+        continue; // a type unavailable on this install, skip
       }
       for (const e of asArray(data?.doc?.elem))
         out.push(mapBillmgrService(e as Record<string, unknown>, type));
@@ -241,7 +241,7 @@ export class BillmgrConnector implements Connector {
 
   /**
    * BILLmanager exposes a ledger: func=payment (top-ups/payments) and func=expense (charges
-   * for services). We import both — payments as `topup`, expenses as `charge` linked to the parent
+   * for services). We import both: payments as `topup`, expenses as `charge` linked to the parent
    * service via `main_item`. Each ledger is best-effort (skipped if unavailable on the install) and
    * paged through in full; expenses are read after resetting the sticky per-service filter so every
    * service's charges come through, not just the one the panel was last filtered to.
@@ -265,7 +265,7 @@ export class BillmgrConnector implements Connector {
         const date = parseBillmgrDate(val(e.pay_date) ?? val(e.create_date));
         if (!id || amountStr == null || !date) continue;
         const number = val(e.number) ?? '';
-        // "return/…" records are refunds — money back, so the amount is negative.
+        // "return/…" records are refunds: money back, so the amount is negative.
         const isRefund = number.toLowerCase().startsWith('return');
         const sign = isRefund ? -1 : 1;
         // Import only credited top-ups ("Зачислен"/"Paid"); skip "Новый"/"Отменён". Refunds carry
@@ -281,7 +281,7 @@ export class BillmgrConnector implements Connector {
         });
       }
     } catch {
-      // payment ledger unavailable / insufficient privileges — skip
+      // payment ledger unavailable / insufficient privileges, skip
     }
 
     try {
@@ -304,7 +304,7 @@ export class BillmgrConnector implements Connector {
         });
       }
     } catch {
-      // expense ledger unavailable — skip
+      // expense ledger unavailable, skip
     }
 
     return out;

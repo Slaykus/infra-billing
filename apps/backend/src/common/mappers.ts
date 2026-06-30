@@ -87,7 +87,7 @@ export function mapApiToken(t: ApiToken): ApiTokenDto {
   return {
     uuid: t.uuid,
     tokenName: t.tokenName,
-    // Only the masked prefix is exposed — the raw token is never stored or returned after creation.
+    // Only the masked prefix is exposed. The raw token is never stored or returned after creation.
     tokenPrefix: t.tokenPrefix,
     lastUsedAt: dateToIso(t.lastUsedAt),
     createdAt: dateToIso(t.createdAt)!,

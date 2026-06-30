@@ -46,7 +46,7 @@ export const createServiceSchema = z.object({
 export type CreateService = z.infer<typeof createServiceSchema>;
 
 export const updateServiceSchema = z.object({
-  // Only honoured for manual services — moving a synced one would orphan it from sync.
+  // Only honoured for manual services. Moving a synced one would orphan it from sync.
   providerUuid: uuidSchema.describe('Provider UUID').optional(),
   // Reassign the service to another project (honoured for synced services too).
   projectUuid: uuidSchema.describe('Project UUID').optional(),

@@ -54,13 +54,13 @@ export class ServicesService {
     const data: Prisma.ServiceUpdateInput = {};
     if (dto.name !== undefined) {
       data.name = dto.name;
-      // Manual name edit — sync must not overwrite it.
+      // Manual name edit. Sync must not overwrite it.
       data.nameOverridden = true;
     }
     if (dto.type !== undefined) data.type = dto.type;
     if (dto.cost !== undefined) {
       data.cost = dto.cost;
-      // Manual price edit — sync must not overwrite it.
+      // Manual price edit. Sync must not overwrite it.
       data.costOverridden = true;
     }
     if (dto.currency !== undefined) data.currency = dto.currency;

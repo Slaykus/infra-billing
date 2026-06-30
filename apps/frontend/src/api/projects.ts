@@ -57,7 +57,7 @@ export function useMoveAllToProject() {
   });
 }
 
-// Empty this project — move its services to the default project.
+// Empty this project: move its services to the default project.
 export function useEmptyProject() {
   const qc = useQueryClient();
   return useMutation({

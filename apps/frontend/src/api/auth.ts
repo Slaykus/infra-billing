@@ -15,7 +15,7 @@ export function useMe() {
   });
 }
 
-/** Public bootstrap status — tells the login page whether to show setup vs login + which methods. */
+/** Public bootstrap status: tells the login page whether to show setup vs login + which methods. */
 export function useSetupStatus() {
   return useQuery({
     queryKey: ['setupStatus'],

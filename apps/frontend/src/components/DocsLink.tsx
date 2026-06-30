@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { API_PREFIX } from '@infra/shared';
 import { useBuildInfo } from '@/api/buildInfo';
 
-/** Direct link to the Swagger UI — shown only when the backend has DOCS=true. */
+/** Direct link to the Swagger UI, shown only when the backend has DOCS=true. */
 export function DocsLink() {
   const { t } = useTranslation();
   const { data } = useBuildInfo();

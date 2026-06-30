@@ -1,7 +1,7 @@
 model Passkey {
   uuid String @id @default(uuid()) @map("uuid")
 
-  // SimpleWebAuthn credential.id — a base64url STRING (not Bytes); used directly in allowCredentials.
+  // SimpleWebAuthn credential.id: a base64url STRING (not Bytes); used directly in allowCredentials.
   credentialId String  @unique @map("credential_id")
   publicKey    Bytes   @map("public_key")
   counter      BigInt  @default(0) @map("counter")

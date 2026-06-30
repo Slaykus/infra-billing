@@ -23,7 +23,7 @@ export interface FourVpsServer {
   disk?: number;
   ipv4?: string;
   status?: string; // "active" | ...
-  expired?: number; // unix seconds — next billing date
+  expired?: number; // unix seconds, next billing date
   autoprolong?: number;
   deleted?: number; // 1 = removed
   [key: string]: unknown;

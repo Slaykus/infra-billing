@@ -90,7 +90,7 @@ studio:
 	DATABASE_URL="$(LOCAL_DATABASE_URL)" npm run prisma:studio -w @infra/backend
 
 # Recovery: wipe the admin account + passkeys so the app shows the first-run setup screen again
-# (use when the password is forgotten and all passkeys are lost). Runs the in-container CLI —
+# (use when the password is forgotten and all passkeys are lost). Runs the in-container CLI,
 # the app container must be up.
 auth-reset:
 	docker compose exec -T infra-billing cli reset-admin --yes
@@ -118,7 +118,7 @@ docker-down:
 
 # ---- versioning -----------------------------------------------------------
 # Bump the root version, then sync all workspaces (backend/frontend/shared) to the same version,
-# then refresh the lockfile. Workspaces are private/internal — only the root version drives the
+# then refresh the lockfile. Workspaces are private/internal. Only the root version drives the
 # image tag / build-info; they're kept in sync just for clarity.
 bump-patch: BUMP=patch
 bump-minor: BUMP=minor

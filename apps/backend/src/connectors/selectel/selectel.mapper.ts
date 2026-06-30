@@ -17,7 +17,7 @@ export function mapSelectelServer(s: NovaServer, region: string): ServiceData {
     countryCode: REGION_COUNTRY[prefix],
     // Cloud servers are usage-billed (no price in the API) → owner sets the cost.
     period: 'monthly',
-    // Curated meta — never include `metadata` (it holds the server password hash).
+    // Curated meta. Never include `metadata` (it holds the server password hash).
     meta: {
       region,
       az,

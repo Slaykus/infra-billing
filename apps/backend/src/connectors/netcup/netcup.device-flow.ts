@@ -71,7 +71,7 @@ export class NetcupDeviceFlowService {
       const res = await this.http.post<TokenResponse>(NETCUP_TOKEN_URL, body);
       data = res.data;
     } catch (e) {
-      // Keycloak returns HTTP 400 with a JSON `{ error }` body while pending — parse that.
+      // Keycloak returns HTTP 400 with a JSON `{ error }` body while pending. Parse that.
       // A non-object body (e.g. a proxy's 5xx HTML page) is treated as transient → rethrow.
       if (axios.isAxiosError(e) && e.response?.data && typeof e.response.data === 'object') {
         data = e.response.data as TokenResponse;

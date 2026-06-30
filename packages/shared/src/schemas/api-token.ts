@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { isoDateSchema, uuidSchema } from './common';
 
-// Persistent/list shape. Only a masked prefix is exposed — the raw token is never returned after
+// Persistent/list shape. Only a masked prefix is exposed. The raw token is never returned after
 // creation (only its SHA-256 hash is stored).
 export const apiTokenSchema = z.object({
   uuid: uuidSchema.describe('API token UUID'),

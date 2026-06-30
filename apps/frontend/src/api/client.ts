@@ -8,7 +8,7 @@ export const api = axios.create({
   withCredentials: true,
 });
 
-// On 401, send the user to the login screen — except for the /auth/me probe
+// On 401, send the user to the login screen, except for the /auth/me probe
 // (RequireAuth handles that softly) and when already on /login.
 api.interceptors.response.use(
   (res) => res,

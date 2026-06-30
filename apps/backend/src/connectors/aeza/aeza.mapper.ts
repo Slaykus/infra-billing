@@ -88,7 +88,7 @@ function toAmount(minor: number): Decimal {
 
 // Map performed transactions to payments. Top-ups stay individual; charges are aggregated into one
 // entry per day (Aeza's hourly billing emits a charge per service per hour, which would otherwise
-// spam the journal) — mirroring the Selectel consumption import.
+// spam the journal), mirroring the Selectel consumption import.
 export function mapAezaPayments(txns: AezaTransaction[], currency: string): PaymentData[] {
   const topups: PaymentData[] = [];
   const charges: AezaTransaction[] = [];

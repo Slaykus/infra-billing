@@ -34,7 +34,7 @@ export function BuildInfo() {
   const version = data?.version ?? '—';
   // "unknown" is what the build emits when not built from a git checkout.
   const commit = data?.gitCommit && data.gitCommit !== 'unknown' ? data.gitCommit : '';
-  // "dev" = the build-arg default (not a tagged release) — flag it with a highlighted "DEV" badge.
+  // "dev" = the build-arg default (not a tagged release). Flag it with a highlighted "DEV" badge.
   const isDev = version === 'dev';
   const label = isDev ? 'DEV' : `v${version}`;
 

@@ -50,7 +50,7 @@ export class SettingsService {
     if (dto.telegramBotToken) data.telegramBotTokenEnc = this.crypto.encrypt(dto.telegramBotToken);
 
     const row = await this.prisma.settings.update({ where: { id: 1 }, data });
-    // The autosync interval lives here now — re-arm the scheduler when it changes.
+    // The autosync interval lives here now. Re-arm the scheduler when it changes.
     if (dto.syncIntervalHours !== undefined) this.sync.reschedule(row.syncIntervalHours);
     return this.toDto(row);
   }

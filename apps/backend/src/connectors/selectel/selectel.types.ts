@@ -4,7 +4,7 @@ export interface SelectelCredentials {
   accountId: string; // account number (Keystone domain name)
   username: string; // service user name
   password: string;
-  projectName?: string; // Cloud Platform project — enables cloud (OpenStack) server listing
+  projectName?: string; // Cloud Platform project; enables cloud (OpenStack) server listing
 }
 
 export interface BalancesResponse {

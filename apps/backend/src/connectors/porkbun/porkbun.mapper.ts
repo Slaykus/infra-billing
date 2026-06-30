@@ -9,7 +9,7 @@ function parseDate(s?: string): Date | undefined {
   return Number.isNaN(d.getTime()) ? undefined : d;
 }
 
-/** The domain's TLD without a leading dot — Porkbun's `tld` field, or everything after the first dot. */
+/** The domain's TLD without a leading dot: Porkbun's `tld` field, or everything after the first dot. */
 export function porkbunTld(d: PorkbunDomain): string {
   return (d.tld || d.domain.split('.').slice(1).join('.')).replace(/^\./, '').toLowerCase();
 }

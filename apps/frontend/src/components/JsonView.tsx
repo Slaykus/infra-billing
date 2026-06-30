@@ -10,7 +10,7 @@ const COLOR = {
   nul: 'var(--mantine-color-dimmed)',
 };
 
-// Tokenize pretty-printed JSON into colored spans — safe by construction (no innerHTML).
+// Tokenize pretty-printed JSON into colored spans. Safe by construction (no innerHTML).
 function highlight(json: string): ReactNode[] {
   const re =
     /("(?:\\.|[^"\\])*"(?:\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;

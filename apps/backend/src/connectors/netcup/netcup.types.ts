@@ -17,7 +17,7 @@ export interface NetcupServer {
   state?: string;
   status?: string;
   // Datacenter location. Per the scp-core OpenAPI, the detail endpoint returns `site` with a
-  // `city` (e.g. "Nuremberg"/"Vienna") — there is no ISO country in the API, so we derive it.
+  // `city` (e.g. "Nuremberg"/"Vienna"). There is no ISO country in the API, so we derive it.
   site?: { id?: number; city?: string };
   // Older/alternative shapes kept as defensive fallbacks (handled in the mapper).
   datacenter?: string | { name?: string; country?: string; location?: string };

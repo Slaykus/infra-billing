@@ -7,12 +7,12 @@ export const envSchema = z.object({
 
   DATABASE_URL: z.string().min(1),
 
-  // AES-256-GCM key for secrets at rest — provider tokens AND the admin's password hash material /
+  // AES-256-GCM key for secrets at rest: provider tokens AND the admin's password hash material /
   // session secret (32 bytes, base64). Root key: must stay in env (can't live in the DB it protects).
   ENCRYPTION_KEY: z.string().min(1),
 
   // NB: the admin account (username + password hash) lives in the DB `auth_config` row, created on
-  // first run in the panel — NOT in env. base currency / rate source / sync interval / Telegram are
+  // first run in the panel. NOT in env. base currency / rate source / sync interval / Telegram are
   // also in the DB `Settings` row. See AuthConfigService / SettingsService.
 
   // Build metadata, baked in by the Docker build args (see Dockerfile/Makefile).

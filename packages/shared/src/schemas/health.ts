@@ -11,7 +11,7 @@ export const buildInfoSchema = z.object({
   buildTime: z.string().describe('Build timestamp'),
   gitCommit: z.string().describe('Git commit hash'),
   nodeVersion: z.string().describe('Node.js runtime version'),
-  // Whether the Swagger docs are exposed (DOCS=true) — drives the header docs link.
+  // Whether the Swagger docs are exposed (DOCS=true), drives the header docs link.
   docs: z.boolean().describe('Swagger docs exposed'),
 });
 export type BuildInfo = z.infer<typeof buildInfoSchema>;

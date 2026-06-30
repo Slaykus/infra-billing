@@ -8,7 +8,7 @@ const BASE_URL = 'https://api.cloudflare.com/client/v4';
 const PER_PAGE = 50;
 
 /**
- * Cloudflare connector — public REST API (https://api.cloudflare.com/client/v4). Auth: Bearer token
+ * Cloudflare connector, public REST API (https://api.cloudflare.com/client/v4). Auth: Bearer token
  * with Account → Domain Configuration:Read (registrar) + Account → Billing:Read (billing). Both
  * endpoints are account-scoped. Currency is USD. There is no account balance (postpay via Stripe),
  * so fetchAccount returns balance:null (like Hetzner). The Registrar API does not return domain
@@ -45,7 +45,7 @@ export class CloudflareConnector implements Connector {
     return domains.map(mapCfDomain);
   }
 
-  /** DEPRECATED billing API — best-effort. Any error (including a future shutdown) → []. */
+  /** DEPRECATED billing API, best-effort. Any error (including a future shutdown) → []. */
   async fetchPayments(signal: AbortSignal): Promise<PaymentData[]> {
     try {
       const items = await this.paginate<CfBillingItem>(
@@ -54,7 +54,7 @@ export class CloudflareConnector implements Connector {
       );
       return items.map(mapCfBilling).filter((p): p is PaymentData => p !== null);
     } catch {
-      // billing/history is deprecated with no replacement — never break the service sync over it
+      // billing/history is deprecated with no replacement. Never break the service sync over it
       return [];
     }
   }
@@ -99,7 +99,7 @@ function cfErrorFromBody(errors?: unknown): Error {
     .map((er) => er?.message)
     .filter(Boolean)
     .join('; ');
-  // 7003/7000 = "could not route … object identifier invalid" — almost always a wrong Account ID.
+  // 7003/7000 = "could not route … object identifier invalid". Almost always a wrong Account ID.
   const badId = list.some((er) => er?.code === 7003 || er?.code === 7000);
   const hint = badId ? ' (check the Cloudflare Account ID)' : '';
   return new Error(`Cloudflare: ${msgs || 'request failed'}${hint}`);

@@ -27,7 +27,7 @@ export const netcupDevicePollSchema = z.object({
 export type NetcupDevicePoll = z.infer<typeof netcupDevicePollSchema>;
 
 export const netcupDevicePollStatusSchema = z.enum([
-  'pending', // user has not approved yet — keep polling
+  'pending', // user has not approved yet, keep polling
   'authorized', // approved → refreshToken present
   'expired', // device code expired → restart
   'denied', // user declined

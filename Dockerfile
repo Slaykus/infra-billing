@@ -23,7 +23,7 @@ COPY apps/backend/package.json apps/backend/
 COPY apps/frontend/package.json apps/frontend/
 # Runtime runs only the backend, so install only its production deps. Scoping to the backend
 # workspace skips the frontend's build-only UI libraries (Vite bundles them into
-# apps/frontend/dist; nothing is required from node_modules at runtime) — the bulk of the image.
+# apps/frontend/dist; nothing is required from node_modules at runtime). The bulk of the image.
 RUN npm ci --omit=dev -w @infra/backend --include-workspace-root && npm cache clean --force
 
 COPY --from=builder /app/packages/shared/dist packages/shared/dist

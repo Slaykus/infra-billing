@@ -5,7 +5,7 @@ import { BegetCloudService, BegetVps } from './beget.types';
 // Beget is Russia-based and bills in rubles; no money field carries a currency code (verified live).
 export const BEGET_CURRENCY = 'RUB';
 
-// Beget bills every assigned IPv4 — including the VPS's primary one — separately, at a flat monthly
+// Beget bills every assigned IPv4 (including the VPS's primary one) separately, at a flat monthly
 export const BEGET_IP_MONTHLY_RUB = 150;
 
 /** Count of distinct assigned IPv4s (primary ∪ additional). A VPS with no IP returns 0. */

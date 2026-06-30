@@ -22,7 +22,7 @@ export function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/** Validate a cabinet URL — only http(s) is safe to put in a Telegram <a href>. */
+/** Validate a cabinet URL: only http(s) is safe to put in a Telegram <a href>. */
 function safeHttpUrl(url?: string | null): string | null {
   if (!url) return null;
   try {

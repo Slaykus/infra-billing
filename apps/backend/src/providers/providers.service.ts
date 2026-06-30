@@ -90,7 +90,7 @@ export class ProvidersService {
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.loginUrl !== undefined) data.loginUrl = dto.loginUrl;
     if (dto.isPostpaid !== undefined) data.isPostpaid = dto.isPostpaid;
-    // Merge onto existing credentials so a partial edit works — e.g. adding only a TOTP
+    // Merge onto existing credentials so a partial edit works, e.g. adding only a TOTP
     // secret to an existing BILLmanager provider without re-entering the password.
     const creds = this.buildCredentials(existing.kind, dto, existing.credentialsEnc);
     if (creds !== null) data.credentialsEnc = creds;
@@ -186,7 +186,7 @@ export class ProvidersService {
       return this.crypto.encrypt(JSON.stringify(creds));
     }
     if (kind === 'cloudflare') {
-      // JSON { accountId, apiToken } — `token` carries the API token. Merge so a partial edit works.
+      // JSON { accountId, apiToken }. `token` carries the API token. Merge so a partial edit works.
       if (!dto.accountId && !dto.token) return null;
       const base = this.decodeCredentials(existingEnc);
       const accountId = dto.accountId ?? base.accountId;
@@ -197,7 +197,7 @@ export class ProvidersService {
       return this.crypto.encrypt(JSON.stringify({ accountId, apiToken }));
     }
     if (kind === 'porkbun') {
-      // JSON { apiKey, secretApiKey } — `token` carries the API key. Merge so a partial edit works.
+      // JSON { apiKey, secretApiKey }. `token` carries the API key. Merge so a partial edit works.
       if (!dto.token && !dto.secretKey) return null;
       const base = this.decodeCredentials(existingEnc);
       const apiKey = dto.token ?? base.apiKey;

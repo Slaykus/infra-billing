@@ -44,7 +44,7 @@ export const theme = createTheme({
   defaultRadius: 'md',
 });
 
-// Light scheme overrides only — dark derives from the `dark` tuple, so no dark overrides.
+// Light scheme overrides only. Dark derives from the `dark` tuple, so no dark overrides.
 export const cssVariablesResolver: CSSVariablesResolver = () => ({
   variables: {},
   light: {

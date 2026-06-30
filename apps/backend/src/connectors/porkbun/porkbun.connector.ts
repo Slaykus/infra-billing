@@ -80,7 +80,7 @@ export class PorkbunConnector implements Connector {
         }
       }
     } catch {
-      // pricing is best-effort — leave cost unset, the owner can edit it
+      // pricing is best-effort: leave cost unset, the owner can edit it
     }
     return out;
   }

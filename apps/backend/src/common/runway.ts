@@ -28,7 +28,7 @@ export function burnFromSnapshots(points: SnapPoint[], minSpanDays = 1): Decimal
     const dtDays = (cur.capturedAt.getTime() - prev.capturedAt.getTime()) / MS_PER_DAY;
     if (dtDays <= 0) continue;
     const delta = prev.balance.sub(cur.balance); // > 0 = balance dropped (spend)
-    if (delta.isNegative()) continue; // top-up interval — drop it entirely
+    if (delta.isNegative()) continue; // top-up interval, drop it entirely
     spent = spent.add(delta);
     spanDays = spanDays.add(dtDays);
   }

@@ -134,7 +134,7 @@ export class WebAuthnService {
     });
     if (!verification.verified) throw new UnauthorizedException('Passkey verification failed');
     const newCounter = verification.authenticationInfo.newCounter;
-    // Counter regression hints at a cloned authenticator. Platform passkeys commonly report 0 —
+    // Counter regression hints at a cloned authenticator. Platform passkeys commonly report 0, so
     // only reject when a real (non-zero) counter went backwards.
     if (newCounter !== 0 && newCounter <= Number(passkey.counter)) {
       throw new UnauthorizedException('Passkey counter regression');

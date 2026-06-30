@@ -1,12 +1,12 @@
 // Beget API response shapes. Only consumed fields are typed.
-// Two APIs on api.beget.com: the new Cloud API (/v1/*, JSON, snake_case — verified live) and the
+// Two APIs on api.beget.com: the new Cloud API (/v1/*, JSON, snake_case, verified live) and the
 // legacy hosting API (/api/user/getAccountInfo, JSON envelope) used only for the account balance.
 
 export interface BegetCredentials {
-  username: string; // Beget account login (cp.beget.com) — used for both APIs
-  password: string; // account password — for the new Cloud API POST /v1/auth → JWT
-  totpSecret?: string; // base32 OTP seed — lets us pass the 2FA code to /v1/auth
-  apiPassword?: string; // separate panel "Beget API" password — enables balance via the legacy API
+  username: string; // Beget account login (cp.beget.com), used for both APIs
+  password: string; // account password, for the new Cloud API POST /v1/auth → JWT
+  totpSecret?: string; // base32 OTP seed, lets us pass the 2FA code to /v1/auth
+  apiPassword?: string; // separate panel "Beget API" password, enables balance via the legacy API
 }
 
 /** POST /v1/auth → 200 with { token } on success, or { error } (an enum) on failure. */
@@ -40,14 +40,14 @@ export interface BegetVpsConfiguration {
 }
 
 export interface BegetVps {
-  id: string; // UUID v4 — stable unique id
+  id: string; // UUID v4, stable unique id
   slug?: string;
   display_name?: string;
   hostname?: string;
   status?: string; // "RUNNING" | "STOPPED" | …
   region?: string; // region id, mapped to a country via /v1/vps/region
   ip_address?: string;
-  additional_ip_address?: string[]; // all assigned IPv4s (incl. the primary) — each billed separately
+  additional_ip_address?: string[]; // all assigned IPv4s (incl. the primary), each billed separately
   date_create?: string; // ISO 8601 with offset (creation date, NOT next billing)
   configuration?: BegetVpsConfiguration;
   software?: { name?: string; display_name?: string; version?: string };

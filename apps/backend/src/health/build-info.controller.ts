@@ -11,7 +11,7 @@ import { BuildInfoDto } from './dto/build-info.dto';
 export class BuildInfoController {
   constructor(private readonly config: AppConfigService) {}
 
-  /** Build metadata for the in-panel "Build Info" popup. No secrets — public. */
+  /** Build metadata for the in-panel "Build Info" popup. No secrets, public. */
   @ApiOperation({ summary: 'Get build info' })
   @ApiOkResponse({ type: BuildInfoDto })
   @Public()
