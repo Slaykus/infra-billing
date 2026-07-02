@@ -61,7 +61,8 @@ function DigitColumn({ value, opacity }: { value: number; opacity: number }) {
   );
 }
 
-export function Odometer({ value, duration = 1000, className }: OdometerProps) {
+// 400ms matches the recharts bar/donut entrance timing so all load animations stay in sync.
+export function Odometer({ value, duration = 400, className }: OdometerProps) {
   const [current, setCurrent] = useState(0);
   const fromRef = useRef(0);
 

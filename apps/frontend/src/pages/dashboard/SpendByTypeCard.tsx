@@ -64,6 +64,9 @@ export function SpendByTypeCard({ byType, base, isLoading }: SpendByTypeCardProp
                   innerRadius={62}
                   outerRadius={88}
                   strokeWidth={0}
+                  // Match the Bar defaults (0/400ms): Pie defaults to a 400ms delay + 1.5s sweep.
+                  animationBegin={0}
+                  animationDuration={400}
                 >
                   {donutData.map((d) => (
                     <Cell key={d.name} fill={d.color} />
