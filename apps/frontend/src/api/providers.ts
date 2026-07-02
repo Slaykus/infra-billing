@@ -4,14 +4,11 @@ import type {
   NetcupDevicePollResult,
   NetcupDeviceStart,
   Provider,
-  Service,
   SyncRun,
   UpdateProvider,
 } from '@infra/shared';
 import { api } from './client';
 import { API_PATH } from '@infra/shared';
-
-export type ProviderWithServices = Provider & { services: Service[] };
 
 const KEY = ['providers'];
 
@@ -19,15 +16,6 @@ export function useProviders() {
   return useQuery({
     queryKey: KEY,
     queryFn: async () => (await api.get<Provider[]>(API_PATH.PROVIDERS.ROOT)).data,
-  });
-}
-
-export function useProvider(uuid?: string) {
-  return useQuery({
-    queryKey: ['providers', uuid],
-    enabled: Boolean(uuid),
-    queryFn: async () =>
-      (await api.get<ProviderWithServices>(API_PATH.PROVIDERS.BY_ID(uuid!))).data,
   });
 }
 

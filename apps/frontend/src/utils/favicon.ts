@@ -1,5 +1,5 @@
 // Favicon via Google s2 (same approach as Remnawave's favicon-resolver).
-export function faviconResolver(link: string | null | undefined): string | null {
+function faviconResolver(link: string | null | undefined): string | null {
   if (!link) return null;
   try {
     const url = new URL(link.startsWith('http') ? link : `https://${link}`);

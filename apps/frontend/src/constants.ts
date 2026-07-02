@@ -6,8 +6,8 @@ import {
   SUPPORTED_CURRENCIES,
 } from '@infra/shared';
 
-export const PERIODS: Period[] = ['monthly', 'yearly', 'quarterly', 'daily', 'hourly', 'onetime'];
-export const SERVICE_TYPES: ServiceType[] = [
+const PERIODS: Period[] = ['monthly', 'yearly', 'quarterly', 'daily', 'hourly', 'onetime'];
+const SERVICE_TYPES: ServiceType[] = [
   'vps',
   'dedicated',
   'domain',
@@ -17,7 +17,7 @@ export const SERVICE_TYPES: ServiceType[] = [
   'license',
   'other',
 ];
-export const PROVIDER_KINDS: ProviderKind[] = [
+const PROVIDER_KINDS: ProviderKind[] = [
   'timeweb',
   'hetzner',
   'netcup',

@@ -7,7 +7,7 @@ import {
 import i18n from '@/i18n';
 
 /** Thrown when WebAuthn can't run in this context (insecure origin / unsupported browser). */
-export class PasskeyUnsupported extends Error {}
+class PasskeyUnsupported extends Error {}
 
 /** WebAuthn needs a secure context (https or localhost) and browser support. */
 export function passkeySupported(): boolean {
