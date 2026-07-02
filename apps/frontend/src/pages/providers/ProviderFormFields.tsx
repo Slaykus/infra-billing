@@ -66,7 +66,27 @@ export function ProviderFormFields({ form, editing, kindOptions }: ProviderFormF
         <div className="space-y-2">
           <Label htmlFor="provider-login-url">{t('providers.field.loginUrl')}</Label>
           <p className="text-xs text-muted-foreground">{t('providers.field.loginUrlDesc')}</p>
-          <Input id="provider-login-url" {...form.register('loginUrl')} />
+          <Input
+            id="provider-login-url"
+            placeholder="https://my.example.com"
+            aria-invalid={form.formState.errors.loginUrl ? true : undefined}
+            {...form.register('loginUrl', {
+              // The backend rejects non-URLs with an opaque 400 — explain it before submit.
+              validate: (v) => {
+                if (!v.trim()) return true;
+                try {
+                  const u = new URL(v);
+                  if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error();
+                  return true;
+                } catch {
+                  return t('providers.err.loginUrlInvalid');
+                }
+              },
+            })}
+          />
+          {form.formState.errors.loginUrl && (
+            <p className="text-xs text-destructive">{form.formState.errors.loginUrl.message}</p>
+          )}
         </div>
         <Controller
           control={form.control}

@@ -87,6 +87,7 @@ export const providers = {
     },
     keepEmpty: 'leave empty to keep unchanged',
     err: {
+      loginUrlInvalid: 'Enter a full link starting with https://',
       hostbillCreds: 'Enter base URL, login and password',
       selectelCreds: 'Enter account number, username and password',
       vps4Token: 'Enter the 4VPS API token',
@@ -208,6 +209,7 @@ export const providers = {
     },
     keepEmpty: 'оставьте пустым, чтобы не менять',
     err: {
+      loginUrlInvalid: 'Укажите полную ссылку, начиная с https://',
       hostbillCreds: 'Укажите base URL, логин и пароль',
       selectelCreds: 'Укажите номер аккаунта, имя пользователя и пароль',
       vps4Token: 'Укажите API-токен 4VPS',
