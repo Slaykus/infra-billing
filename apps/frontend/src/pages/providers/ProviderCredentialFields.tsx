@@ -1,3 +1,4 @@
+import { IconExternalLink } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -12,22 +13,40 @@ interface ProviderCredentialFieldsProps {
   editing: boolean;
 }
 
-/** Field wrapper: label plus an optional description above the input. */
+/** Field wrapper: label plus an optional description and credential deep link above the input. */
 function Field({
   id,
   label,
   description,
+  link,
   children,
 }: {
   id: string;
   label: string;
   description?: string;
+  link?: string;
   children: ReactNode;
 }) {
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
-      {description && <p className="text-xs text-muted-foreground">{description}</p>}
+      {(description || link) && (
+        <p className="text-xs text-muted-foreground">
+          {description}
+          {description && link && ' — '}
+          {link && (
+            <a
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-0.5 text-brand underline-offset-4 hover:underline"
+            >
+              {link.replace(/^https:\/\/(www\.)?/, '').replace(/\/$/, '')}
+              <IconExternalLink className="size-3" />
+            </a>
+          )}
+        </p>
+      )}
       {children}
     </div>
   );
@@ -143,6 +162,7 @@ export function ProviderCredentialFields({ form, editing }: ProviderCredentialFi
           id="cred-token"
           label={t('providers.field.apiToken')}
           description={t('providers.field.apiTokenDesc4vps')}
+          link="https://4vps.su/dashboard/api"
         >
           <Input id="cred-token" placeholder={keepEmpty} {...form.register('token')} />
         </Field>
@@ -180,6 +200,7 @@ export function ProviderCredentialFields({ form, editing }: ProviderCredentialFi
         id="cred-token"
         label={t('providers.field.apiToken')}
         description={t('providers.field.apiTokenDescNetlen')}
+        link="https://www.netlen.com.tr/panel/api"
       >
         <Input id="cred-token" placeholder={keepEmpty} {...form.register('token')} />
       </Field>
@@ -192,6 +213,7 @@ export function ProviderCredentialFields({ form, editing }: ProviderCredentialFi
         id="cred-token"
         label={t('providers.field.apiToken')}
         description={t('providers.field.apiTokenDescVultr')}
+        link="https://console.vultr.com/user/apiaccess/"
       >
         <Input id="cred-token" placeholder={keepEmpty} {...form.register('token')} />
       </Field>
@@ -204,6 +226,7 @@ export function ProviderCredentialFields({ form, editing }: ProviderCredentialFi
         id="cred-token"
         label={t('providers.field.apiToken')}
         description={t('providers.field.apiTokenDescLinode')}
+        link="https://cloud.linode.com/profile/tokens"
       >
         <Input id="cred-token" placeholder={keepEmpty} {...form.register('token')} />
       </Field>
@@ -216,6 +239,7 @@ export function ProviderCredentialFields({ form, editing }: ProviderCredentialFi
         id="cred-token"
         label={t('providers.field.apiToken')}
         description={t('providers.field.apiTokenDescAeza')}
+        link="https://my.aeza.net/settings/apikeys"
       >
         <Input id="cred-token" placeholder={keepEmpty} {...form.register('token')} />
       </Field>
@@ -228,6 +252,7 @@ export function ProviderCredentialFields({ form, editing }: ProviderCredentialFi
         id="cred-token"
         label={t('providers.field.apiToken')}
         description={t('providers.field.apiTokenDescStormwall')}
+        link="https://users.stormwall.pro/tokens"
       >
         <Input id="cred-token" placeholder={keepEmpty} {...form.register('token')} />
       </Field>
@@ -266,6 +291,7 @@ export function ProviderCredentialFields({ form, editing }: ProviderCredentialFi
           id="cred-api-password"
           label={t('providers.field.begetApiPassword')}
           description={t('providers.field.begetApiPasswordDesc')}
+          link="https://cp.beget.com/settings/security/api"
         >
           <PasswordInput
             id="cred-api-password"
@@ -284,6 +310,7 @@ export function ProviderCredentialFields({ form, editing }: ProviderCredentialFi
           id="cred-token"
           label={t('providers.field.porkbunApiKey')}
           description={t('providers.field.porkbunApiKeyDesc')}
+          link="https://porkbun.com/account/api"
         >
           <Input id="cred-token" placeholder={keepEmpty} {...form.register('token')} />
         </Field>
@@ -301,7 +328,11 @@ export function ProviderCredentialFields({ form, editing }: ProviderCredentialFi
   if (kind === 'manual') return null;
 
   return (
-    <Field id="cred-token" label={t('providers.field.apiToken')}>
+    <Field
+      id="cred-token"
+      label={t('providers.field.apiToken')}
+      link={kind === 'timeweb' ? 'https://timeweb.cloud/my/api-keys' : undefined}
+    >
       <Input id="cred-token" placeholder={keepEmpty} {...form.register('token')} />
     </Field>
   );
