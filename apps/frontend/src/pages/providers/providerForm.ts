@@ -19,6 +19,25 @@ export interface FormValues {
   isPostpaid: boolean;
 }
 
+// Well-known cabinet URLs per connector kind, pre-filled into loginUrl on create so the owner
+// doesn't retype them (they also drive the provider favicon). hostbill/billmgr are self-hosted
+// installs and manual has no panel — no default for those. The field stays editable.
+export const DEFAULT_LOGIN_URLS: Record<string, string> = {
+  timeweb: 'https://timeweb.cloud/my',
+  hetzner: 'https://console.hetzner.com',
+  netcup: 'https://www.customercontrolpanel.de',
+  selectel: 'https://my.selectel.ru',
+  '4vps': 'https://4vps.su/dashboard',
+  netlen: 'https://www.netlen.com.tr/panel',
+  beget: 'https://cp.beget.com',
+  stormwall: 'https://users.stormwall.pro',
+  vultr: 'https://console.vultr.com',
+  linode: 'https://cloud.linode.com',
+  aeza: 'https://my.aeza.net',
+  cloudflare: 'https://dash.cloudflare.com',
+  porkbun: 'https://porkbun.com/account',
+};
+
 export const EMPTY_FORM: FormValues = {
   name: '',
   kind: 'manual',

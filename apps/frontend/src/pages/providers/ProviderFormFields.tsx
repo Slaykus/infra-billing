@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ProviderCredentialFields } from './ProviderCredentialFields';
-import type { FormValues } from './providerForm';
+import { DEFAULT_LOGIN_URLS, type FormValues } from './providerForm';
 
 interface ProviderFormFieldsProps {
   form: UseFormReturn<FormValues>;
@@ -48,7 +48,19 @@ export function ProviderFormFields({ form, editing, kindOptions }: ProviderFormF
             control={form.control}
             name="kind"
             render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange} disabled={editing}>
+              <Select
+                value={field.value}
+                onValueChange={(v) => {
+                  // Keep the cabinet link in sync with the kind until the owner types their own
+                  // (the select is disabled when editing, so this only runs on create).
+                  const url = form.getValues('loginUrl');
+                  if (!url || url === DEFAULT_LOGIN_URLS[field.value]) {
+                    form.setValue('loginUrl', DEFAULT_LOGIN_URLS[v] ?? '');
+                  }
+                  field.onChange(v);
+                }}
+                disabled={editing}
+              >
                 <SelectTrigger id="provider-kind" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
