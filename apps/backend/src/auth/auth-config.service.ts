@@ -7,7 +7,8 @@ import {
 import { randomBytes } from 'node:crypto';
 import { Prisma } from '@generated/prisma/client';
 import type { AuthConfig as AuthConfigDto, SetupStatus, UpdateAuthConfig } from '@infra/shared';
-import { PrismaService } from '../prisma/prisma.service';
+import { AuthConfigRepository } from '@repositories/auth-config/auth-config.repository';
+import { PasskeysRepository } from '@repositories/passkeys/passkeys.repository';
 import { CryptoService } from '../crypto/crypto.service';
 import { hashPassword } from './password.util';
 
@@ -20,13 +21,14 @@ export class AuthConfigService {
   private cachedSecret: string | null = null;
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly repo: AuthConfigRepository,
+    private readonly passkeys: PasskeysRepository,
     private readonly crypto: CryptoService,
   ) {}
 
   /** The admin config row, or null when no admin has been set up yet. */
   getRow(): Promise<AuthConfigRow | null> {
-    return this.prisma.authConfig.findUnique({ where: { id: 1 } });
+    return this.repo.find();
   }
 
   async requireRow(): Promise<AuthConfigRow> {
@@ -36,7 +38,7 @@ export class AuthConfigService {
   }
 
   async needsSetup(): Promise<boolean> {
-    return (await this.prisma.authConfig.count()) === 0;
+    return (await this.repo.count()) === 0;
   }
 
   /** Public bootstrap status driving the login/setup screen. */
@@ -56,16 +58,13 @@ export class AuthConfigService {
       throw new ConflictException('Admin account is already configured');
     }
     const secret = randomBytes(32).toString('hex');
-    await this.prisma.authConfig.create({
-      data: {
-        id: 1,
-        username,
-        passwordHash: hashPassword(password),
-        passwordEnabled: true,
-        passkeyEnabled: false,
-        sessionSecretEnc: this.crypto.encrypt(secret),
-        webauthnUserId: Uint8Array.from(randomBytes(32)),
-      },
+    await this.repo.create({
+      username,
+      passwordHash: hashPassword(password),
+      passwordEnabled: true,
+      passkeyEnabled: false,
+      sessionSecretEnc: this.crypto.encrypt(secret),
+      webauthnUserId: Uint8Array.from(randomBytes(32)),
     });
     this.cachedSecret = secret;
   }
@@ -91,7 +90,7 @@ export class AuthConfigService {
     if (!passwordEnabled && !passkeyEnabled) {
       throw new BadRequestException('At least one login method must remain enabled');
     }
-    if (!passwordEnabled && (await this.prisma.passkey.count()) === 0) {
+    if (!passwordEnabled && (await this.passkeys.count()) === 0) {
       throw new BadRequestException('Add a passkey before disabling password login');
     }
 
@@ -103,7 +102,7 @@ export class AuthConfigService {
     if (dto.rpName !== undefined) data.rpName = dto.rpName.trim() || null;
     if (dto.rpOrigin !== undefined) data.rpOrigin = dto.rpOrigin.trim() || null;
 
-    await this.prisma.authConfig.update({ where: { id: 1 }, data });
+    await this.repo.update(data);
     return this.getConfig();
   }
 
@@ -121,10 +120,7 @@ export class AuthConfigService {
       return this.cachedSecret;
     }
     const secret = randomBytes(32).toString('hex');
-    await this.prisma.authConfig.update({
-      where: { id: 1 },
-      data: { sessionSecretEnc: this.crypto.encrypt(secret) },
-    });
+    await this.repo.update({ sessionSecretEnc: this.crypto.encrypt(secret) });
     this.cachedSecret = secret;
     return secret;
   }

@@ -1,9 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@generated/prisma/client';
 import Decimal from 'decimal.js';
 import dayjs from 'dayjs';
 import { AnalyticsSummary, BalancePoint, ForecastPoint, Period, ProjectStats } from '@infra/shared';
-import { PrismaService } from '../prisma/prisma.service';
+import { BalanceSnapshotsRepository } from '@repositories/balance-snapshots/balance-snapshots.repository';
+import { PaymentsRepository } from '@repositories/payments/payments.repository';
+import { ProjectsRepository } from '@repositories/projects/projects.repository';
+import { ProvidersRepository } from '@repositories/providers/providers.repository';
+import { ServicesRepository } from '@repositories/services/services.repository';
 import { CurrencyService } from '../currency/currency.service';
 import { monthlyCost } from '@common/money';
 import { burnFromMonthlyCost, burnFromSnapshots, daysOfRunway } from '@common/runway';
@@ -18,7 +21,11 @@ interface Agg {
 @Injectable()
 export class AnalyticsService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly providersRepo: ProvidersRepository,
+    private readonly projectsRepo: ProjectsRepository,
+    private readonly servicesRepo: ServicesRepository,
+    private readonly paymentsRepo: PaymentsRepository,
+    private readonly snapshotsRepo: BalanceSnapshotsRepository,
     private readonly currency: CurrencyService,
   ) {}
 
@@ -27,10 +34,10 @@ export class AnalyticsService {
     const rates = await this.currency.getRubRates();
 
     const [providers, projects, services, payments] = await Promise.all([
-      this.prisma.provider.findMany({ orderBy: { createdAt: 'asc' } }),
-      this.prisma.project.findMany({ orderBy: { createdAt: 'asc' } }),
-      this.prisma.service.findMany({ where: { isActive: true } }),
-      this.prisma.payment.findMany(),
+      this.providersRepo.listAll(),
+      this.projectsRepo.listAll(),
+      this.servicesRepo.listActive(),
+      this.paymentsRepo.listAll(),
     ]);
     const providerName = new Map(providers.map((p) => [p.uuid, p.name]));
     const providerByUuid = new Map(providers.map((p) => [p.uuid, p]));
@@ -164,10 +171,7 @@ export class AnalyticsService {
       services.filter((s) => s.nextBillingAt != null).map((s) => s.providerUuid),
     );
     const runwayWindowStart = now.subtract(30, 'day').toDate();
-    const snapshots = await this.prisma.balanceSnapshot.findMany({
-      where: { capturedAt: { gte: runwayWindowStart } },
-      orderBy: { capturedAt: 'asc' },
-    });
+    const snapshots = await this.snapshotsRepo.listSince(runwayWindowStart);
     const snapsByProvider = new Map<string, typeof snapshots>();
     for (const snap of snapshots) {
       const list = snapsByProvider.get(snap.providerUuid);
@@ -276,14 +280,14 @@ export class AnalyticsService {
 
   /** Cost statistics for a single project (active services only), in the base currency. */
   async projectStats(projectUuid: string): Promise<ProjectStats> {
-    const project = await this.prisma.project.findUnique({ where: { uuid: projectUuid } });
+    const project = await this.projectsRepo.findByUuid(projectUuid);
     if (!project) throw new NotFoundException('Project not found');
 
     const { baseCurrency } = await this.currency.getEffectiveSettings();
     const rates = await this.currency.getRubRates();
     const [providers, services] = await Promise.all([
-      this.prisma.provider.findMany(),
-      this.prisma.service.findMany({ where: { isActive: true, projectUuid } }),
+      this.providersRepo.listAll(),
+      this.servicesRepo.listActiveByProject(projectUuid),
     ]);
     const providerName = new Map(providers.map((p) => [p.uuid, p.name]));
 
@@ -351,9 +355,7 @@ export class AnalyticsService {
 
     // Actuals: top-ups + manual payments (real money paid out), same definition as
     // currentMonthPayments/totalSpent in summary() — keeps "Actual" consistent with the KPI card.
-    const payments = await this.prisma.payment.findMany({
-      where: { type: { not: 'charge' }, paymentDate: { gte: windowStart.toDate() } },
-    });
+    const payments = await this.paymentsRepo.listNonChargesSince(windowStart.toDate());
     for (const p of payments) {
       const key = dayjs(p.paymentDate).format('YYYY-MM');
       if (!actualBuckets.has(key) || key > currentKey) continue; // future-dated payments ignored
@@ -367,9 +369,7 @@ export class AnalyticsService {
     }
 
     // Projection: recurring services billed strictly in the future (current month shows actuals only).
-    const services = await this.prisma.service.findMany({
-      where: { isActive: true, nextBillingAt: { not: null } },
-    });
+    const services = await this.servicesRepo.listActiveBilled();
     const projStart = current.add(1, 'month');
     const projEnd = current.add(months + 1, 'month');
     for (const s of services) {
@@ -410,12 +410,7 @@ export class AnalyticsService {
   }
 
   async balanceHistory(uuid: string, from?: Date, to?: Date): Promise<BalancePoint[]> {
-    const where: Prisma.BalanceSnapshotWhereInput = { providerUuid: uuid };
-    if (from || to) where.capturedAt = { gte: from, lte: to };
-    const rows = await this.prisma.balanceSnapshot.findMany({
-      where,
-      orderBy: { capturedAt: 'asc' },
-    });
+    const rows = await this.snapshotsRepo.listForProvider(uuid, from, to);
     return rows.map((r) => ({
       balance: r.balance.toFixed(2),
       currency: r.currency,

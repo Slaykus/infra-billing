@@ -1,29 +1,25 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@generated/prisma/client';
 import { BulkMoveResult, DEFAULT_PROJECT_UUID, Project as ProjectDto } from '@infra/shared';
-import { PrismaService } from '../prisma/prisma.service';
+import { ProjectsRepository } from '@repositories/projects/projects.repository';
+import { ServicesRepository } from '@repositories/services/services.repository';
 import { mapProject } from '@common/mappers';
 import { CreateProjectDto, UpdateProjectDto } from './dto/project.dto';
 
-const COUNT_INCLUDE = { _count: { select: { services: true } } } as const;
-
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly projects: ProjectsRepository,
+    private readonly services: ServicesRepository,
+  ) {}
 
   async list(): Promise<ProjectDto[]> {
-    const rows = await this.prisma.project.findMany({
-      orderBy: { createdAt: 'asc' },
-      include: COUNT_INCLUDE,
-    });
+    const rows = await this.projects.listWithCounts();
     return rows.map(mapProject);
   }
 
   async create(dto: CreateProjectDto): Promise<ProjectDto> {
-    const p = await this.prisma.project.create({
-      data: { name: dto.name, faviconLink: dto.faviconLink || null },
-      include: COUNT_INCLUDE,
-    });
+    const p = await this.projects.create({ name: dto.name, faviconLink: dto.faviconLink || null });
     return mapProject(p);
   }
 
@@ -32,29 +28,23 @@ export class ProjectsService {
     const data: Prisma.ProjectUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.faviconLink !== undefined) data.faviconLink = dto.faviconLink || null;
-    const p = await this.prisma.project.update({ where: { uuid }, data, include: COUNT_INCLUDE });
+    const p = await this.projects.update(uuid, data);
     return mapProject(p);
   }
 
   /** Move EVERY service (from any project) into this project. Returns the count actually moved. */
   async moveAllInto(uuid: string): Promise<BulkMoveResult> {
     await this.ensureExists(uuid);
-    const { count } = await this.prisma.service.updateMany({
-      where: { projectUuid: { not: uuid } },
-      data: { projectUuid: uuid },
-    });
-    return { moved: count };
+    const moved = await this.services.moveAllToProject(uuid);
+    return { moved };
   }
 
   /** Empty this project: move its services to the default project (services are never deleted). */
   async empty(uuid: string): Promise<BulkMoveResult> {
     await this.ensureExists(uuid);
     if (uuid === DEFAULT_PROJECT_UUID) return { moved: 0 }; // already the sink, nothing to do
-    const { count } = await this.prisma.service.updateMany({
-      where: { projectUuid: uuid },
-      data: { projectUuid: DEFAULT_PROJECT_UUID },
-    });
-    return { moved: count };
+    const moved = await this.services.moveProjectServices(uuid, DEFAULT_PROJECT_UUID);
+    return { moved };
   }
 
   async remove(uuid: string): Promise<void> {
@@ -62,18 +52,11 @@ export class ProjectsService {
       throw new BadRequestException('The default project cannot be deleted');
     }
     await this.ensureExists(uuid);
-    // onDelete is Restrict, so move this project's services to the default project before deleting.
-    await this.prisma.$transaction([
-      this.prisma.service.updateMany({
-        where: { projectUuid: uuid },
-        data: { projectUuid: DEFAULT_PROJECT_UUID },
-      }),
-      this.prisma.project.delete({ where: { uuid } }),
-    ]);
+    // onDelete is Restrict, so the repo moves this project's services to the default project first.
+    await this.projects.deleteMovingServices(uuid, DEFAULT_PROJECT_UUID);
   }
 
   private async ensureExists(uuid: string): Promise<void> {
-    const found = await this.prisma.project.findUnique({ where: { uuid }, select: { uuid: true } });
-    if (!found) throw new NotFoundException('Project not found');
+    if (!(await this.projects.exists(uuid))) throw new NotFoundException('Project not found');
   }
 }

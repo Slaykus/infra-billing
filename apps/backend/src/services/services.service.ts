@@ -1,54 +1,46 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@generated/prisma/client';
 import { Service as ServiceDto } from '@infra/shared';
-import { PrismaService } from '../prisma/prisma.service';
+import { ProjectsRepository } from '@repositories/projects/projects.repository';
+import { ProvidersRepository } from '@repositories/providers/providers.repository';
+import { ServicesRepository } from '@repositories/services/services.repository';
 import { mapService } from '@common/mappers';
 import { CreateServiceDto, ServiceQueryDto, UpdateServiceDto } from './dto/service.dto';
 
 @Injectable()
 export class ServicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly services: ServicesRepository,
+    private readonly providers: ProvidersRepository,
+    private readonly projects: ProjectsRepository,
+  ) {}
 
   async list(query: ServiceQueryDto): Promise<ServiceDto[]> {
-    const where: Prisma.ServiceWhereInput = {};
-    if (query.providerUuid) where.providerUuid = query.providerUuid;
-    if (query.projectUuid) where.projectUuid = query.projectUuid;
-    if (query.type) where.type = query.type;
-    if (query.isActive !== undefined) where.isActive = query.isActive;
-    const rows = await this.prisma.service.findMany({
-      where,
-      orderBy: { createdAt: 'asc' },
-      include: { _count: { select: { payments: true } } },
-    });
+    const rows = await this.services.listFiltered(query);
     return rows.map(mapService);
   }
 
   async create(dto: CreateServiceDto): Promise<ServiceDto> {
     await this.ensureProvider(dto.providerUuid);
     await this.ensureProject(dto.projectUuid);
-    const s = await this.prisma.service.create({
-      data: {
-        providerUuid: dto.providerUuid,
-        projectUuid: dto.projectUuid,
-        name: dto.name,
-        type: dto.type,
-        cost: dto.cost,
-        currency: dto.currency,
-        period: dto.period,
-        countryCode: dto.countryCode ?? 'XX',
-        nextBillingAt: dto.nextBillingAt ? new Date(dto.nextBillingAt) : null,
-        isActive: dto.isActive ?? true,
-        isManaged: false,
-      },
+    const s = await this.services.create({
+      providerUuid: dto.providerUuid,
+      projectUuid: dto.projectUuid,
+      name: dto.name,
+      type: dto.type,
+      cost: dto.cost,
+      currency: dto.currency,
+      period: dto.period,
+      countryCode: dto.countryCode ?? 'XX',
+      nextBillingAt: dto.nextBillingAt ? new Date(dto.nextBillingAt) : null,
+      isActive: dto.isActive ?? true,
+      isManaged: false,
     });
     return mapService(s);
   }
 
   async update(uuid: string, dto: UpdateServiceDto): Promise<ServiceDto> {
-    const existing = await this.prisma.service.findUnique({
-      where: { uuid },
-      select: { uuid: true, isManaged: true, providerUuid: true },
-    });
+    const existing = await this.services.findByUuid(uuid);
     if (!existing) throw new NotFoundException('Service not found');
 
     const data: Prisma.ServiceUpdateInput = {};
@@ -79,7 +71,7 @@ export class ServicesService {
     // (providerUuid, externalId), so moving it would orphan it from sync.
     const moving = dto.providerUuid !== undefined && dto.providerUuid !== existing.providerUuid;
     if (!moving) {
-      const s = await this.prisma.service.update({ where: { uuid }, data });
+      const s = await this.services.update(uuid, data);
       return mapService(s);
     }
     if (existing.isManaged) {
@@ -87,38 +79,21 @@ export class ServicesService {
     }
     const newProviderUuid = dto.providerUuid as string;
     await this.ensureProvider(newProviderUuid);
-    data.provider = { connect: { uuid: newProviderUuid } };
-    // Re-link the service's payments to the new provider so they stay consistent.
-    const s = await this.prisma.$transaction(async (tx) => {
-      await tx.payment.updateMany({
-        where: { serviceUuid: uuid },
-        data: { providerUuid: newProviderUuid },
-      });
-      return tx.service.update({ where: { uuid }, data });
-    });
+    // Payments are re-linked to the new provider inside the same transaction.
+    const s = await this.services.moveToProvider(uuid, newProviderUuid, data);
     return mapService(s);
   }
 
   async remove(uuid: string): Promise<void> {
-    await this.ensureExists(uuid);
-    await this.prisma.service.delete({ where: { uuid } });
-  }
-
-  private async ensureExists(uuid: string): Promise<void> {
-    const found = await this.prisma.service.findUnique({ where: { uuid }, select: { uuid: true } });
-    if (!found) throw new NotFoundException('Service not found');
+    if (!(await this.services.exists(uuid))) throw new NotFoundException('Service not found');
+    await this.services.delete(uuid);
   }
 
   private async ensureProvider(uuid: string): Promise<void> {
-    const found = await this.prisma.provider.findUnique({
-      where: { uuid },
-      select: { uuid: true },
-    });
-    if (!found) throw new NotFoundException('Provider not found');
+    if (!(await this.providers.exists(uuid))) throw new NotFoundException('Provider not found');
   }
 
   private async ensureProject(uuid: string): Promise<void> {
-    const found = await this.prisma.project.findUnique({ where: { uuid }, select: { uuid: true } });
-    if (!found) throw new NotFoundException('Project not found');
+    if (!(await this.projects.exists(uuid))) throw new NotFoundException('Project not found');
   }
 }

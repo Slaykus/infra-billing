@@ -3,7 +3,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { CookieOptions } from 'express';
 import { AppConfigService } from '@config/app-config.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { ApiTokensRepository } from '@repositories/api-tokens/api-tokens.repository';
 import { AuthConfigService } from './auth-config.service';
 import { verifyPassword } from './password.util';
 import { hashToken } from '../api-tokens/token.util';
@@ -20,7 +20,7 @@ export class AuthService {
   constructor(
     private readonly config: AppConfigService,
     private readonly authConfig: AuthConfigService,
-    private readonly prisma: PrismaService,
+    private readonly apiTokens: ApiTokensRepository,
   ) {}
 
   /** Constant-time credential check against the admin row in the DB. */
@@ -58,14 +58,12 @@ export class AuthService {
   async verifyApiToken(token: string | undefined): Promise<string | null> {
     if (!token) return null;
     // Only the hash is stored; look the presented token up by its SHA-256.
-    const row = await this.prisma.apiToken.findUnique({ where: { tokenHash: hashToken(token) } });
+    const row = await this.apiTokens.findByHash(hashToken(token));
     if (!row) return null;
     // Throttle the lastUsedAt write to ~once/min so we don't write on every request.
     const now = Date.now();
     if (!row.lastUsedAt || now - row.lastUsedAt.getTime() > 60_000) {
-      await this.prisma.apiToken
-        .update({ where: { uuid: row.uuid }, data: { lastUsedAt: new Date(now) } })
-        .catch(() => undefined);
+      await this.apiTokens.touchLastUsed(row.uuid, new Date(now));
     }
     return row.tokenName;
   }

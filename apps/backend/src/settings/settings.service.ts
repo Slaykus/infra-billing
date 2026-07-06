@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@generated/prisma/client';
 import { RateSource, Settings, UpdateSettings } from '@infra/shared';
-import { PrismaService } from '../prisma/prisma.service';
+import { SettingsRepository } from '@repositories/settings/settings.repository';
 import { CryptoService } from '../crypto/crypto.service';
 import { SyncService } from '../sync/sync.service';
 
@@ -19,19 +19,14 @@ interface SettingsRow {
 @Injectable()
 export class SettingsService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly settings: SettingsRepository,
     private readonly crypto: CryptoService,
     private readonly sync: SyncService,
   ) {}
 
   /** Read the singleton settings row, seeding it with the schema column defaults on first access. */
   async get(): Promise<Settings> {
-    const row = await this.prisma.settings.upsert({
-      where: { id: 1 },
-      update: {},
-      // baseCurrency/rateSource/syncIntervalHours/upcomingBillingDays use the Prisma @default()s.
-      create: { id: 1 },
-    });
+    const row = await this.settings.ensure();
     return this.toDto(row);
   }
 
@@ -49,7 +44,7 @@ export class SettingsService {
     if (dto.telegramTopicId !== undefined) data.telegramTopicId = dto.telegramTopicId || null;
     if (dto.telegramBotToken) data.telegramBotTokenEnc = this.crypto.encrypt(dto.telegramBotToken);
 
-    const row = await this.prisma.settings.update({ where: { id: 1 }, data });
+    const row = await this.settings.update(data);
     // The autosync interval lives here now. Re-arm the scheduler when it changes.
     if (dto.syncIntervalHours !== undefined) this.sync.reschedule(row.syncIntervalHours);
     return this.toDto(row);

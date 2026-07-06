@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Api } from 'grammy';
-import { PrismaService } from '../prisma/prisma.service';
+import { SettingsRepository } from '@repositories/settings/settings.repository';
 import { CryptoService } from '../crypto/crypto.service';
 
 interface TelegramConfig {
@@ -16,7 +16,7 @@ export class TelegramService {
   private readonly logger = new Logger(TelegramService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly settings: SettingsRepository,
     private readonly crypto: CryptoService,
   ) {}
 
@@ -44,14 +44,14 @@ export class TelegramService {
 
   /** Automatic notifications are on only when the master switch is on AND config exists. */
   async isEnabled(): Promise<boolean> {
-    const s = await this.prisma.settings.findUnique({ where: { id: 1 } });
+    const s = await this.settings.find();
     if (s && !s.notificationsEnabled) return false;
     return this.resolveConfig(s) !== null;
   }
 
   /** Send a message. Ignores the master switch (used by the manual "test" too). */
   async send(html: string): Promise<boolean> {
-    const s = await this.prisma.settings.findUnique({ where: { id: 1 } });
+    const s = await this.settings.find();
     const cfg = this.resolveConfig(s);
     if (!cfg) return false;
     const options: {

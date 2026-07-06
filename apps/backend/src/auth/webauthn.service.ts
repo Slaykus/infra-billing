@@ -17,7 +17,7 @@ import {
 } from '@simplewebauthn/server';
 import { Prisma } from '@generated/prisma/client';
 import type { Passkey as PasskeyDto } from '@infra/shared';
-import { PrismaService } from '../prisma/prisma.service';
+import { PasskeysRepository } from '@repositories/passkeys/passkeys.repository';
 import { AuthConfigService } from './auth-config.service';
 import { ChallengeStore } from './challenge.store';
 import { nextPasskeyName } from './passkey-name.util';
@@ -29,7 +29,7 @@ type PasskeyRow = Prisma.PasskeyGetPayload<Record<string, never>>;
 @Injectable()
 export class WebAuthnService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly passkeys: PasskeysRepository,
     private readonly authConfig: AuthConfigService,
     private readonly challenges: ChallengeStore,
   ) {}
@@ -39,7 +39,7 @@ export class WebAuthnService {
   async registerOptions(): Promise<PublicKeyCredentialCreationOptionsJSON> {
     const row = await this.authConfig.requireRow();
     const { rpId, rpName } = this.requireRp(row);
-    const existing = await this.prisma.passkey.findMany();
+    const existing = await this.passkeys.listAll();
     const options = await generateRegistrationOptions({
       rpName,
       rpID: rpId,
@@ -75,19 +75,16 @@ export class WebAuthnService {
     // No explicit name → auto-name "Passkey", "Passkey 2", … (next free slot).
     let label = name?.trim();
     if (!label) {
-      const existing = await this.prisma.passkey.findMany({ select: { name: true } });
-      label = nextPasskeyName(existing.map((p) => p.name));
+      label = nextPasskeyName(await this.passkeys.listNames());
     }
-    const created = await this.prisma.passkey.create({
-      data: {
-        credentialId: credential.id,
-        publicKey: credential.publicKey,
-        counter: BigInt(credential.counter),
-        transports: credential.transports?.join(',') ?? null,
-        deviceType: credentialDeviceType,
-        backedUp: credentialBackedUp,
-        name: label,
-      },
+    const created = await this.passkeys.create({
+      credentialId: credential.id,
+      publicKey: credential.publicKey,
+      counter: BigInt(credential.counter),
+      transports: credential.transports?.join(',') ?? null,
+      deviceType: credentialDeviceType,
+      backedUp: credentialBackedUp,
+      name: label,
     });
     return toPasskeyDto(created);
   }
@@ -97,7 +94,7 @@ export class WebAuthnService {
   async loginOptions(): Promise<PublicKeyCredentialRequestOptionsJSON> {
     const row = await this.authConfig.requireRow();
     if (!row.passkeyEnabled) throw new UnauthorizedException('Passkey login is disabled');
-    if ((await this.prisma.passkey.count()) === 0) {
+    if ((await this.passkeys.count()) === 0) {
       throw new UnauthorizedException('No passkeys registered');
     }
     const { rpId } = this.requireRp(row);
@@ -117,7 +114,7 @@ export class WebAuthnService {
     const { rpId, origins } = this.requireRp(row);
     const challenge = this.challenges.take('login');
     if (!challenge) throw new BadRequestException('Login challenge expired — try again');
-    const passkey = await this.prisma.passkey.findUnique({ where: { credentialId: response.id } });
+    const passkey = await this.passkeys.findByCredentialId(response.id);
     if (!passkey) throw new UnauthorizedException('Unknown passkey');
     const verification = await verifyAuthenticationResponse({
       response,
@@ -139,31 +136,28 @@ export class WebAuthnService {
     if (newCounter !== 0 && newCounter <= Number(passkey.counter)) {
       throw new UnauthorizedException('Passkey counter regression');
     }
-    await this.prisma.passkey.update({
-      where: { uuid: passkey.uuid },
-      data: { counter: BigInt(newCounter), lastUsedAt: new Date() },
-    });
+    await this.passkeys.recordLogin(passkey.uuid, BigInt(newCounter));
     return row.username;
   }
 
   // ---- management (authenticated) ----
 
   async list(): Promise<PasskeyDto[]> {
-    const rows = await this.prisma.passkey.findMany({ orderBy: { createdAt: 'asc' } });
+    const rows = await this.passkeys.listAll();
     return rows.map(toPasskeyDto);
   }
 
   async delete(uuid: string): Promise<void> {
     const row = await this.authConfig.requireRow();
-    const passkey = await this.prisma.passkey.findUnique({ where: { uuid } });
+    const passkey = await this.passkeys.findByUuid(uuid);
     if (!passkey) throw new NotFoundException('Passkey not found');
     // Don't let the owner delete their only passkey when password login is off (lockout).
-    if (!row.passwordEnabled && (await this.prisma.passkey.count()) <= 1) {
+    if (!row.passwordEnabled && (await this.passkeys.count()) <= 1) {
       throw new BadRequestException(
         'Cannot delete the last passkey while password login is disabled',
       );
     }
-    await this.prisma.passkey.delete({ where: { uuid } });
+    await this.passkeys.delete(uuid);
   }
 
   /** Resolve the Relying Party config from the admin row, or fail with a clear hint. */

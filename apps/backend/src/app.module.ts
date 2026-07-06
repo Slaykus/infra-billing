@@ -8,6 +8,7 @@ import { WinstonModule } from 'nest-winston';
 import { appLoggerOptions } from '@common/logger';
 import { ConfigModule } from '@config/config.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RepositoriesModule } from '@repositories/repositories.module';
 import { CryptoModule } from './crypto/crypto.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
@@ -33,6 +34,7 @@ const FRONTEND_DIST = join(__dirname, '..', '..', 'frontend', 'dist');
     WinstonModule.forRoot(appLoggerOptions()),
     ConfigModule,
     PrismaModule,
+    RepositoriesModule,
     CryptoModule,
     AuthModule,
     ScheduleModule.forRoot(),

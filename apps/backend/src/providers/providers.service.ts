@@ -1,33 +1,25 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@generated/prisma/client';
 import { Provider as ProviderDto, Service as ServiceDto } from '@infra/shared';
-import { PrismaService } from '../prisma/prisma.service';
+import { ProvidersRepository } from '@repositories/providers/providers.repository';
 import { CryptoService } from '../crypto/crypto.service';
 import { mapProvider, mapService } from '@common/mappers';
 import { CreateProviderDto, UpdateProviderDto } from './dto/provider.dto';
 
-const COUNT_INCLUDE = { _count: { select: { services: true, payments: true } } } as const;
-
 @Injectable()
 export class ProvidersService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly providers: ProvidersRepository,
     private readonly crypto: CryptoService,
   ) {}
 
   async list(): Promise<ProviderDto[]> {
-    const rows = await this.prisma.provider.findMany({
-      orderBy: { createdAt: 'asc' },
-      include: COUNT_INCLUDE,
-    });
+    const rows = await this.providers.listWithCounts();
     return rows.map((r) => this.withCredentialHints(mapProvider(r), r.kind, r.credentialsEnc));
   }
 
   async getWithServices(uuid: string): Promise<ProviderDto & { services: ServiceDto[] }> {
-    const p = await this.prisma.provider.findUnique({
-      where: { uuid },
-      include: { ...COUNT_INCLUDE, services: { orderBy: { createdAt: 'asc' } } },
-    });
+    const p = await this.providers.findWithServices(uuid);
     if (!p) throw new NotFoundException('Provider not found');
     const dto = this.withCredentialHints(mapProvider(p), p.kind, p.credentialsEnc);
     return { ...dto, services: p.services.map(mapService) };
@@ -67,24 +59,18 @@ export class ProvidersService {
   }
 
   async create(dto: CreateProviderDto): Promise<ProviderDto> {
-    const p = await this.prisma.provider.create({
-      data: {
-        name: dto.name,
-        kind: dto.kind,
-        loginUrl: dto.loginUrl ?? null,
-        isPostpaid: dto.isPostpaid ?? false,
-        credentialsEnc: this.buildCredentials(dto.kind, dto),
-      },
-      include: COUNT_INCLUDE,
+    const p = await this.providers.create({
+      name: dto.name,
+      kind: dto.kind,
+      loginUrl: dto.loginUrl ?? null,
+      isPostpaid: dto.isPostpaid ?? false,
+      credentialsEnc: this.buildCredentials(dto.kind, dto),
     });
     return this.withCredentialHints(mapProvider(p), p.kind, p.credentialsEnc);
   }
 
   async update(uuid: string, dto: UpdateProviderDto): Promise<ProviderDto> {
-    const existing = await this.prisma.provider.findUnique({
-      where: { uuid },
-      select: { kind: true, credentialsEnc: true },
-    });
+    const existing = await this.providers.findCredentials(uuid);
     if (!existing) throw new NotFoundException('Provider not found');
     const data: Prisma.ProviderUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name;
@@ -94,13 +80,13 @@ export class ProvidersService {
     // secret to an existing BILLmanager provider without re-entering the password.
     const creds = this.buildCredentials(existing.kind, dto, existing.credentialsEnc);
     if (creds !== null) data.credentialsEnc = creds;
-    const p = await this.prisma.provider.update({ where: { uuid }, data, include: COUNT_INCLUDE });
+    const p = await this.providers.update(uuid, data);
     return this.withCredentialHints(mapProvider(p), p.kind, p.credentialsEnc);
   }
 
   async remove(uuid: string): Promise<void> {
     await this.ensureExists(uuid);
-    await this.prisma.provider.delete({ where: { uuid } });
+    await this.providers.delete(uuid);
   }
 
   // Encrypt creds for storage: timeweb/hetzner → raw token; hostbill/billmgr/selectel/4vps → JSON.
@@ -222,10 +208,6 @@ export class ProvidersService {
   }
 
   private async ensureExists(uuid: string): Promise<void> {
-    const found = await this.prisma.provider.findUnique({
-      where: { uuid },
-      select: { uuid: true },
-    });
-    if (!found) throw new NotFoundException('Provider not found');
+    if (!(await this.providers.exists(uuid))) throw new NotFoundException('Provider not found');
   }
 }

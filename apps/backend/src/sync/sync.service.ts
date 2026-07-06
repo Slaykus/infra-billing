@@ -8,7 +8,12 @@ import {
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { Prisma } from '@generated/prisma/client';
 import { DEFAULT_PROJECT_UUID, SyncRun as SyncRunDto } from '@infra/shared';
-import { PrismaService } from '../prisma/prisma.service';
+import { BalanceSnapshotsRepository } from '@repositories/balance-snapshots/balance-snapshots.repository';
+import { PaymentsRepository } from '@repositories/payments/payments.repository';
+import { ProvidersRepository } from '@repositories/providers/providers.repository';
+import { ServicesRepository } from '@repositories/services/services.repository';
+import { SettingsRepository } from '@repositories/settings/settings.repository';
+import { SyncRunsRepository } from '@repositories/sync-runs/sync-runs.repository';
 import { CryptoService } from '../crypto/crypto.service';
 import { ConnectorFactory } from '@connectors/connector.factory';
 import { PaymentData, ServiceData } from '@connectors/connector.interface';
@@ -27,7 +32,12 @@ export class SyncService implements OnModuleInit {
   private nextRunAt: Date | null = null;
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly providers: ProvidersRepository,
+    private readonly services: ServicesRepository,
+    private readonly payments: PaymentsRepository,
+    private readonly snapshots: BalanceSnapshotsRepository,
+    private readonly syncRuns: SyncRunsRepository,
+    private readonly settings: SettingsRepository,
     private readonly crypto: CryptoService,
     private readonly connectors: ConnectorFactory,
     private readonly scheduler: SchedulerRegistry,
@@ -35,7 +45,7 @@ export class SyncService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     // Sync cadence is owned by the DB Settings row (editable in the panel), not env.
-    const s = await this.prisma.settings.findUnique({ where: { id: 1 } });
+    const s = await this.settings.find();
     this.applyInterval(s?.syncIntervalHours ?? DEFAULT_SYNC_INTERVAL_HOURS);
   }
 
@@ -69,10 +79,7 @@ export class SyncService implements OnModuleInit {
 
   /** Sync every non-manual provider; failures are isolated. */
   async syncAllProviders(): Promise<void> {
-    const providers = await this.prisma.provider.findMany({
-      where: { kind: { not: 'manual' } },
-      select: { uuid: true, name: true },
-    });
+    const providers = await this.providers.listSyncable();
     for (const p of providers) {
       try {
         await this.syncProvider(p.uuid);
@@ -87,10 +94,7 @@ export class SyncService implements OnModuleInit {
 
   /** Manually sync every non-manual provider in parallel; returns a summary for the UI. */
   async syncAll(): Promise<{ total: number; ok: number; failed: number }> {
-    const providers = await this.prisma.provider.findMany({
-      where: { kind: { not: 'manual' } },
-      select: { uuid: true },
-    });
+    const providers = await this.providers.listSyncable();
     const results = await Promise.allSettled(providers.map((p) => this.syncProvider(p.uuid)));
     let ok = 0;
     let failed = 0;
@@ -102,15 +106,13 @@ export class SyncService implements OnModuleInit {
   }
 
   async syncProvider(uuid: string): Promise<SyncRunDto> {
-    const provider = await this.prisma.provider.findUnique({ where: { uuid } });
+    const provider = await this.providers.findByUuid(uuid);
     if (!provider) throw new NotFoundException('Provider not found');
     if (provider.kind === 'manual') {
       throw new BadRequestException('Manual providers cannot be synced');
     }
 
-    const run = await this.prisma.syncRun.create({
-      data: { providerUuid: uuid, status: 'running' },
-    });
+    const run = await this.syncRuns.createRunning(uuid);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), SYNC_TIMEOUT_MS);
 
@@ -123,13 +125,8 @@ export class SyncService implements OnModuleInit {
       // Some providers (e.g. Hetzner) expose no account balance → skip balance/snapshot.
       if (account.balance !== null) {
         const balance = account.balance.toFixed(2);
-        await this.prisma.provider.update({
-          where: { uuid },
-          data: { balance, balanceCurrency: account.currency, balanceSyncedAt: new Date() },
-        });
-        await this.prisma.balanceSnapshot.create({
-          data: { providerUuid: uuid, balance, currency: account.currency },
-        });
+        await this.providers.updateBalance(uuid, balance, account.currency);
+        await this.snapshots.record(uuid, balance, account.currency);
       }
 
       const fetched = await connector.fetchServices(controller.signal);
@@ -151,25 +148,14 @@ export class SyncService implements OnModuleInit {
         }
       }
 
-      await this.prisma.provider.update({
-        where: { uuid },
-        data: { lastSyncAt: new Date(), lastSyncError: null },
-      });
-      const done = await this.prisma.syncRun.update({
-        where: { id: run.id },
-        data: { status: 'ok', servicesFound, finishedAt: new Date() },
-      });
+      await this.providers.markSynced(uuid);
+      const done = await this.syncRuns.markOk(run.id, servicesFound);
       this.logger.log(`Sync "${provider.name}" (${uuid}): ok, ${servicesFound} service(s)`);
       return mapSyncRun(done);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      await this.prisma.provider
-        .update({ where: { uuid }, data: { lastSyncError: message } })
-        .catch(() => undefined);
-      const failed = await this.prisma.syncRun.update({
-        where: { id: run.id },
-        data: { status: 'error', error: message, finishedAt: new Date() },
-      });
+      await this.providers.recordSyncError(uuid, message);
+      const failed = await this.syncRuns.markError(run.id, message);
       this.logger.warn(`Sync "${provider.name}" (${uuid}): error — ${message}`);
       return mapSyncRun(failed);
     } finally {
@@ -178,11 +164,7 @@ export class SyncService implements OnModuleInit {
   }
 
   async listSyncRuns(uuid: string, limit = 50): Promise<SyncRunDto[]> {
-    const rows = await this.prisma.syncRun.findMany({
-      where: { providerUuid: uuid },
-      orderBy: { startedAt: 'desc' },
-      take: limit,
-    });
+    const rows = await this.syncRuns.listForProvider(uuid, limit);
     return rows.map(mapSyncRun);
   }
 
@@ -199,28 +181,24 @@ export class SyncService implements OnModuleInit {
       // bad date fail the whole provider sync.
       const nextBilling =
         sd.nextBilling && !Number.isNaN(sd.nextBilling.getTime()) ? sd.nextBilling : null;
-      const existing = await this.prisma.service.findFirst({
-        where: { providerUuid, externalId: sd.externalId },
-      });
+      const existing = await this.services.findByExternalId(providerUuid, sd.externalId);
       if (!existing) {
-        await this.prisma.service.create({
-          data: {
-            providerUuid,
-            // Providers are shared, so a sync can't know the project. Land new services in the
-            // default project; the owner reassigns them on the Services page.
-            projectUuid: DEFAULT_PROJECT_UUID,
-            externalId: sd.externalId,
-            name: sd.name,
-            type: sd.type,
-            countryCode: sd.countryCode ?? 'XX',
-            cost: sd.cost ? sd.cost.toFixed(2) : '0.00',
-            currency: sd.currency ?? accountCurrency,
-            period: sd.period ?? 'monthly',
-            nextBillingAt: nextBilling,
-            isActive: true,
-            isManaged: true,
-            meta: (sd.meta ?? {}) as Prisma.InputJsonValue,
-          },
+        await this.services.create({
+          providerUuid,
+          // Providers are shared, so a sync can't know the project. Land new services in the
+          // default project; the owner reassigns them on the Services page.
+          projectUuid: DEFAULT_PROJECT_UUID,
+          externalId: sd.externalId,
+          name: sd.name,
+          type: sd.type,
+          countryCode: sd.countryCode ?? 'XX',
+          cost: sd.cost ? sd.cost.toFixed(2) : '0.00',
+          currency: sd.currency ?? accountCurrency,
+          period: sd.period ?? 'monthly',
+          nextBillingAt: nextBilling,
+          isActive: true,
+          isManaged: true,
+          meta: (sd.meta ?? {}) as Prisma.InputJsonValue,
         });
       } else {
         const data: Prisma.ServiceUpdateInput = {
@@ -239,15 +217,12 @@ export class SyncService implements OnModuleInit {
           // Refresh currency from the connector (or the account currency) on every sync.
           data.currency = sd.currency ?? accountCurrency;
         }
-        await this.prisma.service.update({ where: { uuid: existing.uuid }, data });
+        await this.services.update(existing.uuid, data);
       }
     }
 
     // Managed services no longer returned by the API → mark inactive (don't delete).
-    await this.prisma.service.updateMany({
-      where: { providerUuid, isManaged: true, externalId: { notIn: Array.from(seen) } },
-      data: { isActive: false },
-    });
+    await this.services.deactivateMissing(providerUuid, Array.from(seen));
 
     return fetched.length;
   }
@@ -259,10 +234,7 @@ export class SyncService implements OnModuleInit {
    */
   private async upsertPayments(providerUuid: string, payments: PaymentData[]): Promise<number> {
     if (payments.length === 0) return 0;
-    const services = await this.prisma.service.findMany({
-      where: { providerUuid },
-      select: { uuid: true, externalId: true },
-    });
+    const services = await this.services.listExternalIds(providerUuid);
     const serviceByExternalId = new Map<string, string>();
     for (const s of services) if (s.externalId) serviceByExternalId.set(s.externalId, s.uuid);
 
@@ -270,18 +242,13 @@ export class SyncService implements OnModuleInit {
       const serviceUuid = p.serviceExternalId
         ? (serviceByExternalId.get(p.serviceExternalId) ?? null)
         : null;
-      const data = {
+      await this.payments.upsertExternal(providerUuid, p.externalId, {
         amount: p.amount.toFixed(2),
         currency: p.currency,
         type: p.type,
         description: p.description ?? null,
         paymentDate: p.date,
         serviceUuid,
-      };
-      await this.prisma.payment.upsert({
-        where: { providerUuid_externalId: { providerUuid, externalId: p.externalId } },
-        create: { providerUuid, externalId: p.externalId, ...data },
-        update: data,
       });
     }
     return payments.length;

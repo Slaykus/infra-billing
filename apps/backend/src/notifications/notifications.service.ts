@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import dayjs from 'dayjs';
-import { PrismaService } from '../prisma/prisma.service';
+import { NotificationLogRepository } from '@repositories/notification-log/notification-log.repository';
+import { SettingsRepository } from '@repositories/settings/settings.repository';
+import { SyncRunsRepository } from '@repositories/sync-runs/sync-runs.repository';
 import { AnalyticsService } from '../analytics/analytics.service';
 import {
   lowBalanceMessage,
@@ -20,7 +22,9 @@ export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly settings: SettingsRepository,
+    private readonly syncRuns: SyncRunsRepository,
+    private readonly notificationLog: NotificationLogRepository,
     private readonly analytics: AnalyticsService,
     private readonly telegram: TelegramService,
   ) {}
@@ -29,7 +33,7 @@ export class NotificationsService {
   async checkAndNotify(): Promise<number> {
     if (!(await this.telegram.isEnabled())) return 0;
 
-    const settings = await this.prisma.settings.findUnique({ where: { id: 1 } });
+    const settings = await this.settings.find();
     const upcomingDays = settings?.upcomingBillingDays ?? DEFAULT_UPCOMING_BILLING_DAYS;
     const summary = await this.analytics.summary();
     let sent = 0;
@@ -61,11 +65,7 @@ export class NotificationsService {
 
     // 3) Sync errors in the last 24h (one per provider).
     const since = dayjs().subtract(THROTTLE_HOURS, 'hour').toDate();
-    const errorRuns = await this.prisma.syncRun.findMany({
-      where: { status: 'error', finishedAt: { gte: since } },
-      orderBy: { finishedAt: 'desc' },
-      include: { provider: { select: { name: true, loginUrl: true } } },
-    });
+    const errorRuns = await this.syncRuns.listErrorsSince(since);
     const seenProviders = new Set<string>();
     for (const run of errorRuns) {
       if (seenProviders.has(run.providerUuid)) continue;
@@ -103,12 +103,9 @@ export class NotificationsService {
   /** Send only if the same dedup key hasn't been sent within THROTTLE_HOURS. */
   private async maybeSend(dedupKey: string, html: string): Promise<boolean> {
     const since = dayjs().subtract(THROTTLE_HOURS, 'hour').toDate();
-    const recent = await this.prisma.notificationLog.findFirst({
-      where: { dedupKey, sentAt: { gte: since } },
-    });
-    if (recent) return false;
+    if (await this.notificationLog.wasSentSince(dedupKey, since)) return false;
     const ok = await this.telegram.send(html);
-    if (ok) await this.prisma.notificationLog.create({ data: { dedupKey } });
+    if (ok) await this.notificationLog.record(dedupKey);
     return ok;
   }
 }
