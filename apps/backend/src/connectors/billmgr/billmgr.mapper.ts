@@ -1,7 +1,7 @@
 import Decimal from 'decimal.js';
 import { normalizeCurrency } from '../common/currency';
 import { ServiceData } from '../connector.interface';
-import { firstNumber, val } from './billmgr.parse';
+import { firstNumber, parseBillmgrDate, val } from './billmgr.parse';
 
 // Numeric `period` is months for standard plans (1/3/12) but negative for daily/hourly (-50 = day),
 // so prefer the `autoprolong` word («день»/«месяц»/«год»…); numeric months is the fallback.
@@ -37,7 +37,9 @@ export function mapBillmgrService(e: Record<string, unknown>, type: string): Ser
     val(e.autoprolong),
     new Decimal(costStr),
   );
-  const expire = val(e.expiredate) ?? val(e.real_expiredate);
+  // У посуточных (billdaily=on) expiredate — текстовая метка («Ежедневное списание»),
+  // реальная дата — в real_expiredate.
+  const expire = parseBillmgrDate(val(e.expiredate)) ?? parseBillmgrDate(val(e.real_expiredate));
   return {
     externalId: String(id),
     // Prefer the domain (what BILLmanager shows in the "Domain name" column); the
@@ -47,7 +49,7 @@ export function mapBillmgrService(e: Record<string, unknown>, type: string): Ser
     cost,
     currency: normalizeCurrency(val(e.currency_str)),
     period,
-    nextBilling: expire ? new Date(expire) : undefined,
+    nextBilling: expire,
     meta: e,
   };
 }

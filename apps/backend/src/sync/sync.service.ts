@@ -195,6 +195,10 @@ export class SyncService implements OnModuleInit {
     const seen = new Set<string>();
     for (const sd of fetched) {
       seen.add(sd.externalId);
+      // A connector can emit an Invalid Date from an unexpected API string — don't let one
+      // bad date fail the whole provider sync.
+      const nextBilling =
+        sd.nextBilling && !Number.isNaN(sd.nextBilling.getTime()) ? sd.nextBilling : null;
       const existing = await this.prisma.service.findFirst({
         where: { providerUuid, externalId: sd.externalId },
       });
@@ -212,7 +216,7 @@ export class SyncService implements OnModuleInit {
             cost: sd.cost ? sd.cost.toFixed(2) : '0.00',
             currency: sd.currency ?? accountCurrency,
             period: sd.period ?? 'monthly',
-            nextBillingAt: sd.nextBilling ?? null,
+            nextBillingAt: nextBilling,
             isActive: true,
             isManaged: true,
             meta: (sd.meta ?? {}) as Prisma.InputJsonValue,
@@ -227,7 +231,7 @@ export class SyncService implements OnModuleInit {
         // Don't overwrite a manually-edited name.
         if (!existing.nameOverridden) data.name = sd.name;
         if (sd.countryCode) data.countryCode = sd.countryCode;
-        if (sd.nextBilling) data.nextBillingAt = sd.nextBilling;
+        if (nextBilling) data.nextBillingAt = nextBilling;
         // Don't overwrite a manually-edited price.
         if (!existing.costOverridden) {
           if (sd.cost) data.cost = sd.cost.toFixed(2);
