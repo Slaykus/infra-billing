@@ -15,6 +15,7 @@ import { ProvidersPage } from './pages/providers/ProvidersPage';
 import { ProjectsPage } from './pages/projects/ProjectsPage';
 import { ServicesPage } from './pages/services/ServicesPage';
 import { PaymentsPage } from './pages/payments/PaymentsPage';
+import { IncomePage } from './pages/income/IncomePage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { AuthSettingsPage } from './pages/auth-settings/AuthSettingsPage';
 import { TokensPage } from './pages/TokensPage';
@@ -43,6 +44,7 @@ export default function App() {
                   <Route path="projects" element={<ProjectsPage />} />
                   <Route path="services" element={<ServicesPage />} />
                   <Route path="payments" element={<PaymentsPage />} />
+                  <Route path="income" element={<IncomePage />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="settings/auth" element={<AuthSettingsPage />} />
                   <Route path="settings/tokens" element={<TokensPage />} />

@@ -4,6 +4,7 @@ import {
   IconLayoutDashboard,
   IconLogout,
   IconReceipt2,
+  IconCoin,
   IconServer2,
   IconSettings,
   IconShieldLock,
@@ -58,6 +59,7 @@ const NAV: { sectionKey: string; items: NavItem[] }[] = [
       { to: '/projects', labelKey: 'nav.projects', icon: IconFolders },
       { to: '/services', labelKey: 'nav.services', icon: IconStack2 },
       { to: '/payments', labelKey: 'nav.payments', icon: IconReceipt2 },
+      { to: '/income', labelKey: 'nav.income', icon: IconCoin },
     ],
   },
   {

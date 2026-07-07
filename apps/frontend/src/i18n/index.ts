@@ -4,6 +4,7 @@ import { initReactI18next } from 'react-i18next';
 import { auth } from './locales/auth';
 import { common } from './locales/common';
 import { dashboard } from './locales/dashboard';
+import { income } from './locales/income';
 import { payments } from './locales/payments';
 import { projects } from './locales/projects';
 import { providers } from './locales/providers';
@@ -23,6 +24,7 @@ const resources = {
       projects: projects.en,
       services: services.en,
       payments: payments.en,
+      income: income.en,
       settings: settings.en,
       auth: auth.en,
       tokens: tokens.en,
@@ -36,6 +38,7 @@ const resources = {
       projects: projects.ru,
       services: services.ru,
       payments: payments.ru,
+      income: income.ru,
       settings: settings.ru,
       auth: auth.ru,
       tokens: tokens.ru,
