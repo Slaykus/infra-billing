@@ -25,6 +25,15 @@ export const envSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+
+  // Income source: Moy Nalog receipts service. Income sync stays off unless URL + key are set.
+  RECEIPTS_SERVICE_URL: z.string().url().optional(),
+  RECEIPTS_SERVICE_KEY: z.string().optional(),
+  RECEIPTS_CURRENCY: z.string().default('RUB'),
+  INCOME_SYNC_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
 });
 
 export type Env = z.infer<typeof envSchema>;

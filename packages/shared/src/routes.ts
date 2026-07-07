@@ -20,6 +20,7 @@ export const API = {
   PROJECTS: 'projects',
   SERVICES: 'services',
   PAYMENTS: 'payments',
+  INCOME: 'income',
   ANALYTICS: 'analytics',
   RATES: 'rates',
   SETTINGS: 'settings',
@@ -51,6 +52,11 @@ export const API_SUB = {
   // netcup OAuth2 device flow (in-panel token acquisition).
   PROVIDER_NETCUP_DEVICE_START: 'netcup/device/start',
   PROVIDER_NETCUP_DEVICE_POLL: 'netcup/device/poll',
+  INCOME_SYNC: 'sync',
+  INCOME_SUMMARY: 'summary',
+  INCOME_FORECAST: 'forecast',
+  INCOME_SUMMARY: 'summary',
+  INCOME_FORECAST: 'forecast',
   ANALYTICS_SUMMARY: 'summary',
   ANALYTICS_FORECAST: 'forecast',
   RATES_REFRESH: 'refresh',
@@ -105,6 +111,13 @@ export const API_PATH = {
   PAYMENTS: {
     ROOT: path(API.PAYMENTS),
     BY_ID: (uuid: string) => pathId(API.PAYMENTS, API_SUB.BY_ID, uuid),
+  },
+  INCOME: {
+    ROOT: path(API.INCOME),
+    BY_ID: (uuid: string) => pathId(API.INCOME, API_SUB.BY_ID, uuid),
+    SYNC: path(API.INCOME, API_SUB.INCOME_SYNC),
+    SUMMARY: path(API.INCOME, API_SUB.INCOME_SUMMARY),
+    FORECAST: path(API.INCOME, API_SUB.INCOME_FORECAST),
   },
   ANALYTICS: {
     SUMMARY: path(API.ANALYTICS, API_SUB.ANALYTICS_SUMMARY),

@@ -16,6 +16,7 @@ import { ProvidersModule } from './providers/providers.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ServicesModule } from './services/services.module';
 import { PaymentsModule } from './payments/payments.module';
+import { IncomeModule } from './income/income.module';
 import { ConnectorsModule } from '@connectors/connectors.module';
 import { CurrencyModule } from './currency/currency.module';
 import { SyncModule } from './sync/sync.module';
@@ -43,6 +44,7 @@ const FRONTEND_DIST = join(__dirname, '..', '..', 'frontend', 'dist');
     ProjectsModule,
     ServicesModule,
     PaymentsModule,
+    IncomeModule,
     ConnectorsModule,
     CurrencyModule,
     SyncModule,

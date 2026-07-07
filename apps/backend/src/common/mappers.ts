@@ -1,6 +1,15 @@
-import { ApiToken, Payment, Project, Provider, Service, SyncRun } from '@generated/prisma/client';
+import {
+  ApiToken,
+  IncomeEntry,
+  Payment,
+  Project,
+  Provider,
+  Service,
+  SyncRun,
+} from '@generated/prisma/client';
 import {
   ApiToken as ApiTokenDto,
+  IncomeEntry as IncomeEntryDto,
   Payment as PaymentDto,
   PaymentType,
   Period,
@@ -107,5 +116,20 @@ export function mapPayment(p: Payment): PaymentDto {
     externalId: p.externalId,
     createdAt: dateToIso(p.createdAt)!,
     updatedAt: dateToIso(p.updatedAt)!,
+  };
+}
+
+export function mapIncomeEntry(e: IncomeEntry): IncomeEntryDto {
+  return {
+    uuid: e.uuid,
+    source: e.source,
+    externalId: e.externalId,
+    amount: decimalToString(e.amount)!,
+    currency: e.currency,
+    description: e.description,
+    incomeDate: dateToIso(e.incomeDate)!,
+    status: e.status,
+    receiptLink: e.receiptLink,
+    createdAt: dateToIso(e.createdAt)!,
   };
 }

@@ -3,6 +3,7 @@ import { ApiTokensRepository } from './api-tokens/api-tokens.repository';
 import { AuthConfigRepository } from './auth-config/auth-config.repository';
 import { BalanceSnapshotsRepository } from './balance-snapshots/balance-snapshots.repository';
 import { ExchangeRatesRepository } from './exchange-rates/exchange-rates.repository';
+import { IncomeEntriesRepository } from './income-entries/income-entries.repository';
 import { NotificationLogRepository } from './notification-log/notification-log.repository';
 import { PasskeysRepository } from './passkeys/passkeys.repository';
 import { PaymentsRepository } from './payments/payments.repository';
@@ -17,6 +18,7 @@ const REPOSITORIES = [
   AuthConfigRepository,
   BalanceSnapshotsRepository,
   ExchangeRatesRepository,
+  IncomeEntriesRepository,
   NotificationLogRepository,
   PasskeysRepository,
   PaymentsRepository,

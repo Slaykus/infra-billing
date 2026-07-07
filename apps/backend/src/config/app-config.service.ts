@@ -41,4 +41,25 @@ export class AppConfigService {
       docs: this.env.DOCS,
     };
   }
+
+  get receiptsServiceUrl(): string | undefined {
+    return this.env.RECEIPTS_SERVICE_URL;
+  }
+
+  get receiptsServiceKey(): string | undefined {
+    return this.env.RECEIPTS_SERVICE_KEY;
+  }
+
+  get receiptsCurrency(): string {
+    return this.env.RECEIPTS_CURRENCY;
+  }
+
+  /** True only when income sync is enabled AND the source URL + key are configured. */
+  get incomeSyncEnabled(): boolean {
+    return (
+      this.env.INCOME_SYNC_ENABLED &&
+      !!this.env.RECEIPTS_SERVICE_URL &&
+      !!this.env.RECEIPTS_SERVICE_KEY
+    );
+  }
 }

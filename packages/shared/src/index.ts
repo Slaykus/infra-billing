@@ -7,6 +7,7 @@ export * from './schemas/netcup';
 export * from './schemas/project';
 export * from './schemas/service';
 export * from './schemas/payment';
+export * from './schemas/income';
 export * from './schemas/settings';
 export * from './schemas/rate';
 export * from './schemas/sync';

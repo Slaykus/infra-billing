@@ -6,6 +6,7 @@ export const CONTROLLERS_INFO = {
   SYNC: { TAG: 'Sync', DESCRIPTION: 'Trigger and inspect provider syncs' },
   SERVICES: { TAG: 'Services', DESCRIPTION: 'Paid resources at providers' },
   PAYMENTS: { TAG: 'Payments', DESCRIPTION: 'Log of actual payments' },
+  INCOME: { TAG: 'Income', DESCRIPTION: 'Revenue: synced receipts and manual entries' },
   ANALYTICS: { TAG: 'Analytics', DESCRIPTION: 'Spend summary and forecast' },
   BALANCE_HISTORY: { TAG: 'Balance History', DESCRIPTION: 'Provider balance snapshots' },
   RATES: { TAG: 'Exchange Rates', DESCRIPTION: 'Currency rates to the base currency' },
