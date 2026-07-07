@@ -3,6 +3,15 @@ export const dashboard = {
   en: {
     title: 'Dashboard',
     subtitle: 'Infrastructure expenses overview',
+    profit: {
+      title: 'Profit — revenue vs expenses ({{base}})',
+      revenue: 'Revenue',
+      expenses: 'Expenses',
+      net: 'Net profit',
+      thisMonth: 'This month',
+      revenueSeries: 'Revenue',
+      expenseSeries: 'Expenses',
+    },
     kpi: {
       monthly: 'Monthly expenses',
       yearly: 'Yearly projection',
@@ -65,6 +74,15 @@ export const dashboard = {
   ru: {
     title: 'Дашборд',
     subtitle: 'Обзор расходов на инфраструктуру',
+    profit: {
+      title: 'Прибыль — доходы против расходов ({{base}})',
+      revenue: 'Доходы',
+      expenses: 'Расходы',
+      net: 'Чистая прибыль',
+      thisMonth: 'В этом месяце',
+      revenueSeries: 'Доходы',
+      expenseSeries: 'Расходы',
+    },
     kpi: {
       monthly: 'Расходы в месяц',
       yearly: 'Прогноз в год',

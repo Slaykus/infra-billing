@@ -13,6 +13,7 @@ import { ByProviderCard } from './ByProviderCard';
 import { DashboardAlerts } from './DashboardAlerts';
 import { ForecastCard } from './ForecastCard';
 import { KpiCards } from './KpiCards';
+import { ProfitCard } from './ProfitCard';
 import { RunwayCard } from './RunwayCard';
 import { SpendByTypeCard } from './SpendByTypeCard';
 import { UpcomingBillingsCard } from './UpcomingBillingsCard';
@@ -64,6 +65,8 @@ export function DashboardPage() {
         <SpendByTypeCard byType={summary?.byType ?? []} base={base} isLoading={isLoading} />
         <ForecastCard forecast={forecast} base={base} />
       </div>
+
+      <ProfitCard summary={summary} base={base} />
 
       <ByProjectCard
         projectRows={summary?.byProject ?? []}
