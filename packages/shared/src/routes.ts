@@ -55,8 +55,6 @@ export const API_SUB = {
   INCOME_SYNC: 'sync',
   INCOME_SUMMARY: 'summary',
   INCOME_FORECAST: 'forecast',
-  INCOME_SUMMARY: 'summary',
-  INCOME_FORECAST: 'forecast',
   ANALYTICS_SUMMARY: 'summary',
   ANALYTICS_FORECAST: 'forecast',
   RATES_REFRESH: 'refresh',
