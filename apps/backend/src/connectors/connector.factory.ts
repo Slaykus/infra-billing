@@ -22,6 +22,7 @@ import type { SelectelCredentials } from './selectel/selectel.types';
 import { StormwallConnector } from './stormwall/stormwall.connector';
 import { TimewebConnector } from './timeweb/timeweb.connector';
 import { VultrConnector } from './vultr/vultr.connector';
+import { VdsinaConnector } from './vdsina/vdsina.connector';
 
 @Injectable()
 export class ConnectorFactory {
@@ -68,6 +69,9 @@ export class ConnectorFactory {
       case 'aeza':
         // Aeza secret is the raw API key (single string, sent as the X-API-KEY header).
         return new AezaConnector(token);
+      case 'vdsina':
+        // VDSina secret is the raw API token (single string, sent as the Authorization header).
+        return new VdsinaConnector(token);
       case 'cloudflare':
         // Cloudflare secret is JSON: { accountId, apiToken } (account-scoped registrar + billing).
         return new CloudflareConnector(JSON.parse(token) as CloudflareCredentials);

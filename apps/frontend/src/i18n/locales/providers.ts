@@ -63,6 +63,8 @@ export const providers = {
       apiTokenDescLinode:
         'Linode → Account → API Tokens → create a Personal Access Token (read access to Account and Linodes)',
       apiTokenDescAeza: 'Aeza panel → API Keys → create an API key',
+      apiTokenDescVdsina:
+        'VDSina control panel → user list → permanent API token, sent as the Authorization header',
       apiTokenDescCloudflare:
         'Cloudflare → My Profile → API Tokens → create a token with Registrar: Domains:Read and Billing:Read',
       cloudflareAccountIdDesc: 'Cloudflare account ID (dashboard URL or GET /accounts)',
@@ -97,6 +99,7 @@ export const providers = {
       porkbunCreds: 'Enter the Porkbun API key and secret key',
       linodeToken: 'Enter the Linode API token',
       aezaToken: 'Enter the Aeza API key',
+      vdsinaToken: 'Enter the VDSina API token',
       cloudflareCreds: 'Enter the Cloudflare account ID and API token',
       stormwallToken: 'Enter the StormWall API key',
     },
@@ -184,6 +187,8 @@ export const providers = {
       apiTokenDescLinode:
         'Linode → Account → API Tokens → создать Personal Access Token (доступ на чтение к Account и Linodes)',
       apiTokenDescAeza: 'Панель Aeza → API Keys → создать API-ключ',
+      apiTokenDescVdsina:
+        'Личный кабинет VDSina → список пользователей → постоянный API-токен (заголовок Authorization)',
       apiTokenDescCloudflare:
         'Cloudflare → My Profile → API Tokens → создать токен с правами Registrar: Domains:Read и Billing:Read',
       cloudflareAccountIdDesc: 'Account ID аккаунта Cloudflare (из URL дашборда или GET /accounts)',
@@ -219,6 +224,7 @@ export const providers = {
       porkbunCreds: 'Укажите API-ключ и секретный ключ Porkbun',
       linodeToken: 'Укажите API-токен Linode',
       aezaToken: 'Укажите API-ключ Aeza',
+      vdsinaToken: 'Укажите API-токен VDSina',
       cloudflareCreds: 'Укажите account ID и API-токен Cloudflare',
       stormwallToken: 'Укажите API-ключ StormWall',
     },
