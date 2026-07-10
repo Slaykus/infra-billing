@@ -4,7 +4,6 @@ import { REQUEST_TIMEOUT_MS } from '../common/http';
 import { Account, Connector, PaymentData, ServiceData } from '../connector.interface';
 import { VDSINA_CURRENCY, mapVdsinaOperation, mapVdsinaServer } from './vdsina.mapper';
 import {
-  VdsinaAccount,
   VdsinaBalance,
   VdsinaEnvelope,
   VdsinaOperation,
@@ -13,6 +12,21 @@ import {
 } from './vdsina.types';
 
 const BASE_URL = 'https://userapi.vdsina.ru';
+
+/** Server detail data.{cpu,ram,disk} carry value (plan base) vs total (configured) pairs. */
+function isCustomized(server: VdsinaServer): boolean {
+  const data = server.data;
+  if (!data || typeof data !== 'object') return false;
+  return Object.values(data).some(
+    (p) =>
+      p !== null &&
+      typeof p === 'object' &&
+      'value' in p &&
+      'total' in p &&
+      (p as { value?: unknown; total?: unknown }).value !==
+        (p as { value?: unknown; total?: unknown }).total,
+  );
+}
 
 /**
  * VDSina Public API (https://vdsina.ru/tech/api): JSON over HTTPS, token in the Authorization
@@ -28,6 +42,8 @@ export class VdsinaConnector implements Connector {
       baseURL: BASE_URL,
       timeout: REQUEST_TIMEOUT_MS,
       headers: { Authorization: token },
+      // The JSON API never legitimately redirects; refuse rather than re-send the token elsewhere.
+      maxRedirects: 0,
     });
     this.http.interceptors.response.use(
       (res) => {
@@ -38,10 +54,12 @@ export class VdsinaConnector implements Connector {
         return res;
       },
       (e) => {
+        // Never rethrow the AxiosError itself: its config carries the Authorization header,
+        // and sync errors end up in logs/DB. Keep only the safe message.
         if (axios.isAxiosError(e)) {
           const body = e.response?.data as VdsinaEnvelope<unknown> | undefined;
-          const msg = body?.description || body?.status_msg;
-          if (msg) throw new Error(`VDSina: ${msg}`);
+          const msg = body?.description || body?.status_msg || e.message;
+          throw new Error(`VDSina: ${msg}`);
         }
         throw e;
       },
@@ -53,15 +71,11 @@ export class VdsinaConnector implements Connector {
   }
 
   async fetchAccount(signal: AbortSignal): Promise<Account> {
-    const [{ data: balanceRes }] = await Promise.all([
-      this.http.get<VdsinaEnvelope<VdsinaBalance>>('/v1/account.balance', { signal }),
-      // Best-effort token/account probe; balance is the only field represented in Account.
-      this.http
-        .get<VdsinaEnvelope<VdsinaAccount>>('/v1/account', { signal })
-        .catch(() => undefined),
-    ]);
+    const { data } = await this.http.get<VdsinaEnvelope<VdsinaBalance>>('/v1/account.balance', {
+      signal,
+    });
     return {
-      balance: new Decimal(String(balanceRes.data?.real ?? 0)),
+      balance: new Decimal(String(data.data?.real ?? 0)),
       currency: VDSINA_CURRENCY,
     };
   }
@@ -110,6 +124,9 @@ export class VdsinaConnector implements Connector {
     const plans = await this.fetchPlans(group.id, signal);
     const priced = plans.find((p) => p.id === plan.id);
     if (!priced) return server;
+    // Constructor plans (has_params) bill base price + configured extras; the catalog price alone
+    // underreports a customized server, and a wrong price is worse than a missing one.
+    if (priced.has_params && isCustomized(server)) return server;
 
     return {
       ...server,

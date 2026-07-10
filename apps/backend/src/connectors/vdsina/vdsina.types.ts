@@ -8,16 +8,6 @@ export interface VdsinaEnvelope<T> {
   data: T;
 }
 
-export interface VdsinaAccount {
-  account?: {
-    id: number;
-    name?: string;
-  };
-  created?: string;
-  forecast?: string;
-  can?: Record<string, boolean>;
-}
-
 export interface VdsinaBalance {
   real?: number | string;
   bonus?: number | string;
@@ -43,6 +33,8 @@ export interface VdsinaServer {
   'server-group'?: VdsinaNamedRef;
   server_group?: VdsinaNamedRef;
   template?: VdsinaNamedRef;
+  // detail response: per-parameter { value: plan base, total: configured } pairs (cpu/ram/disk)
+  data?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
@@ -52,6 +44,7 @@ export interface VdsinaServerPlan {
   cost?: number | string;
   period?: string;
   period_name?: string;
+  has_params?: boolean;
   'server-group'?: number;
   server_group?: number;
   data?: Record<string, unknown>;

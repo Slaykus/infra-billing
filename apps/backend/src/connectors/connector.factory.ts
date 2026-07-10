@@ -21,8 +21,8 @@ import { SelectelConnector } from './selectel/selectel.connector';
 import type { SelectelCredentials } from './selectel/selectel.types';
 import { StormwallConnector } from './stormwall/stormwall.connector';
 import { TimewebConnector } from './timeweb/timeweb.connector';
-import { VultrConnector } from './vultr/vultr.connector';
 import { VdsinaConnector } from './vdsina/vdsina.connector';
+import { VultrConnector } from './vultr/vultr.connector';
 
 @Injectable()
 export class ConnectorFactory {

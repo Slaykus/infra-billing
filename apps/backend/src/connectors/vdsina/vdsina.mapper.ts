@@ -47,9 +47,11 @@ function countryCode(s: VdsinaServer): string | undefined {
   return country && country.length === 2 ? country.toUpperCase() : undefined;
 }
 
-function period(plan: VdsinaServer['server-plan']): string {
+// Unknown/absent plan period stays undefined: a false "monthly" next to a per-day price would
+// skew normalization ~30x, and the sync only overwrites the stored period when one is emitted.
+function period(plan: VdsinaServer['server-plan']): string | undefined {
   const raw = plan?.period;
-  return raw ? (PERIOD_MAP[raw] ?? 'monthly') : 'monthly';
+  return raw ? PERIOD_MAP[raw] : undefined;
 }
 
 export function mapVdsinaServer(s: VdsinaServer): ServiceData {
@@ -81,6 +83,9 @@ export function mapVdsinaOperation(o: VdsinaOperation): PaymentData | null {
   // Only completed operations represent real money movement. Pending top-ups have paylink/status=0.
   if (o.status !== 1) return null;
   if (o.type !== 1 && o.type !== -1) return null;
+  // Bonus/partner purses are not money out of pocket — count only the main balance, matching
+  // fetchAccount which reports balance.real. Rows without the field still import.
+  if (o.purse && o.purse !== 'real') return null;
   const amount = asDecimal(o.summ)?.abs();
   if (!amount || amount.lte(0)) return null;
   const serviceId = o.service?.id ? String(o.service.id) : undefined;
