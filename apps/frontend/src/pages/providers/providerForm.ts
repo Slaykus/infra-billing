@@ -34,6 +34,7 @@ export const DEFAULT_LOGIN_URLS: Record<string, string> = {
   vultr: 'https://console.vultr.com',
   linode: 'https://cloud.linode.com',
   aeza: 'https://my.aeza.net',
+  vdsina: 'https://cp.vdsina.ru',
   cloudflare: 'https://dash.cloudflare.com',
   porkbun: 'https://porkbun.com/account',
 };
@@ -69,6 +70,7 @@ export function validateProviderCredentials(v: FormValues, t: TFunction): string
   if (v.kind === 'porkbun' && !(v.token && v.secretKey)) return t('providers.err.porkbunCreds');
   if (v.kind === 'linode' && !v.token) return t('providers.err.linodeToken');
   if (v.kind === 'aeza' && !v.token) return t('providers.err.aezaToken');
+  if (v.kind === 'vdsina' && !v.token) return t('providers.err.vdsinaToken');
   if (v.kind === 'cloudflare' && !(v.accountId && v.token))
     return t('providers.err.cloudflareCreds');
   if (v.kind === 'stormwall' && !v.token) return t('providers.err.stormwallToken');

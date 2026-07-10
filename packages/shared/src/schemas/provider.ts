@@ -30,7 +30,7 @@ export const providerSchema = z.object({
 });
 export type Provider = z.infer<typeof providerSchema>;
 
-// Bearer-token providers (timeweb, hetzner) use `token`. HostBill/BILLmanager use
+// Bearer/API-token providers (timeweb, hetzner, vdsina) use `token`. HostBill/BILLmanager use
 // `baseUrl` + `username` (email) + `password`. BILLmanager with OTP 2FA additionally
 // takes `totpSecret` (the base32 seed) so the backend can generate one-time codes.
 // Beget uses `username` (account login) + `password` (Cloud API), plus optional `totpSecret`

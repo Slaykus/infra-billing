@@ -259,6 +259,32 @@ export function ProviderCredentialFields({ form, editing }: ProviderCredentialFi
     );
   }
 
+  if (kind === 'vdsina') {
+    return (
+      <>
+        <Field
+          id="cred-token"
+          label={t('providers.field.apiToken')}
+          description={t('providers.field.apiTokenDescVdsina')}
+          link="https://cp.vdsina.ru/user/list"
+        >
+          <Input id="cred-token" placeholder={keepEmpty} {...form.register('token')} />
+        </Field>
+        <Field
+          id="cred-base-url"
+          label={t('providers.field.apiBaseUrl')}
+          description={t('providers.field.apiBaseUrlDescVdsina')}
+        >
+          <Input
+            id="cred-base-url"
+            placeholder="https://userapi.vdsina.ru"
+            {...form.register('baseUrl')}
+          />
+        </Field>
+      </>
+    );
+  }
+
   if (kind === 'beget') {
     return (
       <>

@@ -10,7 +10,8 @@
 ## Возможности
 
 - **Провайдеры с API:** Timeweb Cloud, Hetzner Cloud, netcup, HostBill, ISPsystem BILLmanager,
-  Selectel, 4VPS.SU, Netlen, Beget Cloud, Porkbun, Vultr, Linode, Aeza, Cloudflare, StormWall. Плюс **Manual** — провайдеры без API ведутся руками.
+  Selectel, 4VPS.SU, Netlen, Beget Cloud, Porkbun, Vultr, Linode, Aeza, VDSina, Cloudflare,
+  StormWall. Плюс **Manual** — провайдеры без API ведутся руками.
 - **Автосинк** (по расписанию + кнопкой): баланс + валюта аккаунта, список серверов/услуг, даты
   следующих списаний; история баланса по дням (снапшоты).
 - **Импорт платежей** там, где API отдаёт реестр (BILLmanager — пополнения и списания, HostBill —
@@ -186,6 +187,9 @@ curl -H "Authorization: Bearer ib_…" https://infra-billing/api/providers
 - **Aeza** — API-ключ (панель → API Keys). Тянет серверы (цена по сроку оплаты, страна по
   локации, дата продления), баланс (валюта аккаунта — RUB/USD/EUR) и историю транзакций
   (пополнения + списания). Суммы в API — в минорных единицах (÷100). Баланс предоплатный.
+- **VDSina** — постоянный API-токен из личного кабинета (список пользователей:
+  `https://cp.vdsina.ru/user/list`). Тянет баланс
+  основного счёта (RUB), серверы и операции по балансу (оплаченные пополнения + списания).
 - **Cloudflare** — API-токен (My Profile → API Tokens) с правами *Registrar: Domains:Read*
   и *Billing:Read*, плюс ID аккаунта (из URL дашборда или `GET /accounts`).
   Регистратор доменов: тянет домены (`type=domain`, годовой период, дата продления = дата истечения;
