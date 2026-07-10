@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import axios, { type AxiosInstance } from 'axios';
 import Decimal from 'decimal.js';
 import { normalizeCurrency } from '../common/currency';
@@ -47,6 +48,7 @@ const TOTP_FAILED_MESSAGE =
  * confirm via OTP (if a TOTP secret is set) or fail with a clear message.
  */
 export class BillmgrConnector implements Connector {
+  private readonly logger = new Logger(BillmgrConnector.name);
   private readonly http: AxiosInstance;
   private readonly creds: BillmgrCredentials;
   private session: string | null = null;
@@ -176,20 +178,35 @@ export class BillmgrConnector implements Connector {
   }
 
   /**
-   * BILLmanager's expense report carries a sticky, account-level filter (e.g. "Service ID = 388",
-   * set when a single service's charges were opened in the panel). Left in place it hides every
-   * other service's charges, so we reset it before listing. Otherwise only the filtered service
-   * gets its expenses imported. The filter only APPLIES when the form is submitted normally; with
-   * out=json BILLmanager just echoes the form back without saving, so this POST omits out=json.
+   * BILLmanager list filters are sticky and account-level: once saved (from the panel UI or via
+   * API) they silently apply to every later list call of that func for the same user, so a list
+   * fetched with out=json can be quietly truncated. Reset by submitting the filter form with its
+   * empty defaults. The filter only APPLIES when the form is submitted normally; with out=json
+   * BILLmanager just echoes the form back without saving, so this POST omits out=json.
    * Best-effort: if the reset fails we fall back to whatever filter is currently set.
    */
-  private async clearExpenseFilter(signal: AbortSignal): Promise<void> {
+  private async clearListFilter(
+    func: string,
+    fields: Record<string, string>,
+    signal: AbortSignal,
+  ): Promise<void> {
     try {
       const auth = await this.ensureSession(signal);
-      const body = new URLSearchParams({
-        func: 'expense.filter',
-        auth,
-        sok: 'ok',
+      const body = new URLSearchParams({ func, auth, sok: 'ok', ...fields });
+      await this.http.post('', body.toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        signal,
+      });
+    } catch {
+      // best-effort: a failed reset just leaves the current filter in place
+    }
+  }
+
+  // e.g. "Service ID = 388", set when a single service's charges were opened in the panel.
+  private clearExpenseFilter(signal: AbortSignal): Promise<void> {
+    return this.clearListFilter(
+      'expense.filter',
+      {
         item: '',
         id: '',
         locale_name: '',
@@ -199,14 +216,36 @@ export class BillmgrConnector implements Connector {
         compare_type: 'null',
         notpayd_compare_type: 'null',
         notpayd_amount: '',
-      });
-      await this.http.post('', body.toString(), {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        signal,
-      });
-    } catch {
-      // best-effort: a failed reset just leaves the current filter in place
-    }
+      },
+      signal,
+    );
+  }
+
+  // Empty defaults exactly as the live payment.filter form reports them (akenai): text inputs
+  // blank, createdate preset "nodate" (no date restriction), restrictrefund "null".
+  private clearPaymentFilter(signal: AbortSignal): Promise<void> {
+    return this.clearListFilter(
+      'payment.filter',
+      {
+        id: '',
+        number: '',
+        sender: '',
+        sender_id: '',
+        createdate: 'nodate',
+        createdatestart: '',
+        createdateend: '',
+        payfromdate: '',
+        paytodate: '',
+        paymethod: '',
+        status: '',
+        saamount_from: '',
+        saamount_to: '',
+        pmamount_from: '',
+        pmamount_to: '',
+        restrictrefund: 'null',
+      },
+      signal,
+    );
   }
 
   async fetchAccount(signal: AbortSignal): Promise<Account> {
@@ -257,6 +296,10 @@ export class BillmgrConnector implements Connector {
     };
 
     try {
+      // Same sticky-filter hazard as expenses: a filter saved on the payments list would
+      // silently hide top-ups from func=payment, so reset it first.
+      await this.clearPaymentFilter(signal);
+      const skippedByStatus = new Map<string, number>();
       for (const e of await this.listAll('payment', signal)) {
         const id = val(e.id);
         const amountRaw =
@@ -265,12 +308,17 @@ export class BillmgrConnector implements Connector {
         const date = parseBillmgrDate(val(e.pay_date) ?? val(e.create_date));
         if (!id || amountStr == null || !date) continue;
         const number = val(e.number) ?? '';
+        const status = val(e.status);
         // "return/…" records are refunds: money back, so the amount is negative.
         const isRefund = number.toLowerCase().startsWith('return');
         const sign = isRefund ? -1 : 1;
-        // Import only credited top-ups ("Зачислен"/"Paid"); skip "Новый"/"Отменён". Refunds carry
-        // no status (money already returned), so they bypass the check.
-        if (!isRefund && !isPaymentCredited(val(e.status))) continue;
+        // Import only credited top-ups ("Зачислен"/"Credited"/"Paid"); skip "Новый"/"Отменён".
+        // Refunds bypass the check (money already returned).
+        if (!isRefund && !isPaymentCredited(status)) {
+          // status is always set here — isPaymentCredited treats an absent one as credited
+          skippedByStatus.set(status!, (skippedByStatus.get(status!) ?? 0) + 1);
+          continue;
+        }
         add({
           externalId: `payment:${id}`,
           type: 'topup',
@@ -280,8 +328,15 @@ export class BillmgrConnector implements Connector {
           description: number ? `Payment ${number}` : 'Payment',
         });
       }
-    } catch {
-      // payment ledger unavailable / insufficient privileges, skip
+      // Surfaces unexpected localized status names (a new locale would otherwise silently
+      // drop every top-up — exactly how "Credited" went missing).
+      if (skippedByStatus.size) {
+        const detail = [...skippedByStatus].map(([s, n]) => `"${s}" ×${n}`).join(', ');
+        this.logger.log(`func=payment: skipped non-credited payment(s): ${detail}`);
+      }
+    } catch (err) {
+      // ledger unavailable / insufficient privileges — top-ups just miss this run
+      this.logger.warn(`func=payment list failed, top-ups not imported: ${(err as Error).message}`);
     }
 
     try {
@@ -303,8 +358,9 @@ export class BillmgrConnector implements Connector {
           serviceExternalId: val(e.main_item) ?? val(e.item),
         });
       }
-    } catch {
-      // expense ledger unavailable, skip
+    } catch (err) {
+      // ledger unavailable — charges just miss this run
+      this.logger.warn(`func=expense list failed, charges not imported: ${(err as Error).message}`);
     }
 
     return out;

@@ -24,8 +24,10 @@ export function currencyFromAmount(s: string | undefined): string {
   return normalizeCurrency((s ?? '').replace(/[\d.,\s+-]/g, ''));
 }
 
-// func=payment renders `status` as a localized display name ("Зачислен"/"Paid"); other states
-// like "Новый"/"Отменён" are not real top-ups. Verified live: akenai (en) returns "Paid".
+// func=payment renders `status` as a localized display name; the credited state (code 4,
+// «Зачислен») shows as "Credited" on English installs — verified live: akenai (en) returns
+// "Credited" for every credited top-up. "Paid"/«Оплачен» (money received, not yet credited)
+// also counts; states like "Новый"/"Отменён" are not real top-ups.
 const CREDITED_PAYMENT_STATUSES = new Set([
   'зачислен',
   'зачислено',
@@ -34,6 +36,7 @@ const CREDITED_PAYMENT_STATUSES = new Set([
   'проведен',
   'проведён',
   'paid',
+  'credited',
 ]);
 
 // Whether a func=payment record counts as a completed top-up. A missing status is treated as
