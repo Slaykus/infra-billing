@@ -138,7 +138,7 @@ export function ServicesTable({
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {formatDateShort(s.nextBillingAt)}
-                      {!s.isManaged && s.nextBillingAt && (
+                      {s.nextBillingAt && (
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
