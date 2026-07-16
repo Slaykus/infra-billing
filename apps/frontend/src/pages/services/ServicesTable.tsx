@@ -1,8 +1,10 @@
 import type { Project, Provider, Service } from '@infra/shared';
+import { IconCalendarPlus } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { EntityLabel } from '@/components/EntityLabel';
 import { SortableTableHead } from '@/components/SortableTableHead';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
   Table,
@@ -32,6 +34,7 @@ interface ServicesTableProps {
   sort: SortState<ServiceSortKey> | null;
   onToggleSort: (key: ServiceSortKey) => void;
   onRowClick: (s: Service) => void;
+  onBumpNextBilling: (s: Service) => void;
 }
 
 export function ServicesTable({
@@ -44,6 +47,7 @@ export function ServicesTable({
   sort,
   onToggleSort,
   onRowClick,
+  onBumpNextBilling,
 }: ServicesTableProps) {
   const { t } = useTranslation();
   const sortHead = (key: ServiceSortKey, label: string) => (
@@ -131,7 +135,32 @@ export function ServicesTable({
                   <TableCell>{serviceTypeLabel(s.type)}</TableCell>
                   <TableCell>{formatCost(s.cost, s.currency)}</TableCell>
                   <TableCell>{periodLabel(s.period)}</TableCell>
-                  <TableCell>{formatDateShort(s.nextBillingAt)}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      {formatDateShort(s.nextBillingAt)}
+                      {s.nextBillingAt && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-muted-foreground"
+                              aria-label={t('services.bumpTooltip')}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onBumpNextBilling(s);
+                              }}
+                              // Enter/Space on the focused button must not also open the row modal.
+                              onKeyDown={(e) => e.stopPropagation()}
+                            >
+                              <IconCalendarPlus className="size-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{t('services.bumpTooltip')}</TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Badge
                       variant={s.isManaged ? 'default' : 'secondary'}

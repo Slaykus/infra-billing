@@ -1,8 +1,10 @@
 import type { Service } from '@infra/shared';
-import { useRef } from 'react';
+import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePayments } from '@/api/payments';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Table,
@@ -13,6 +15,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDateShort, formatMoney } from '@/utils/format';
+
+// Small pages: the modal must stay browsable even for services with hundreds of daily charges.
+const PAGE_SIZE = 5;
 
 // Read-only list of the payments tied to a single service (opened from the table receipt icon).
 export function ServicePaymentsModal({
@@ -29,11 +34,24 @@ export function ServicePaymentsModal({
   if (service) lastService.current = service;
   const shown = service ?? lastService.current;
 
+  const [rawPage, setRawPage] = useState(1);
+  // Every open starts on page 1 — adjust in render (like PaymentsPage), not in an effect.
+  const wasOpen = useRef(false);
+  if (Boolean(service) !== wasOpen.current) {
+    wasOpen.current = Boolean(service);
+    if (service) setRawPage(1);
+  }
+
   const payments = usePayments(
     { serviceUuid: shown?.uuid },
-    { enabled: Boolean(service), pageSize: 100 },
+    { enabled: Boolean(service), page: rawPage, pageSize: PAGE_SIZE },
   );
   const items = payments.data?.items ?? [];
+  const total = payments.data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // Server-side pagination: clamp when the total shrinks under the current page.
+  if (payments.data && rawPage > pageCount) setRawPage(pageCount);
+  const page = Math.min(rawPage, pageCount);
 
   return (
     <Dialog open={!!service} onOpenChange={(o) => !o && onClose()}>
@@ -95,6 +113,34 @@ export function ServicePaymentsModal({
                 ))}
               </TableBody>
             </Table>
+          </div>
+        )}
+        {total > PAGE_SIZE && (
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">{t('payments.total', { count: total })}</p>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="prev"
+                disabled={page <= 1}
+                onClick={() => setRawPage(Math.max(1, page - 1))}
+              >
+                <IconChevronLeft className="size-4" />
+              </Button>
+              <span className="min-w-14 text-center text-sm tabular-nums">
+                {page} / {pageCount}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="next"
+                disabled={page >= pageCount}
+                onClick={() => setRawPage(Math.min(pageCount, page + 1))}
+              >
+                <IconChevronRight className="size-4" />
+              </Button>
+            </div>
           </div>
         )}
       </DialogContent>

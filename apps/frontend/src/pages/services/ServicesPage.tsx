@@ -183,6 +183,25 @@ export function ServicesPage() {
     }
   };
 
+  const bumpNextBilling = async (s: Service) => {
+    if (!s.nextBillingAt) return;
+    try {
+      await update.mutateAsync({
+        uuid: s.uuid,
+        // Slice the UTC date part before month math: dayjs(iso) parses in local time,
+        // which shifts midnight-UTC dates by a day in negative-offset timezones.
+        dto: {
+          nextBillingAt: toIso(
+            dayjs(s.nextBillingAt.slice(0, 10)).add(1, 'month').format('YYYY-MM-DD'),
+          ),
+        },
+      });
+      notifySuccess(t('services.updatedToast'));
+    } catch (e) {
+      notifyError(apiErrorMessage(e));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -214,6 +233,7 @@ export function ServicesPage() {
         sort={sort}
         onToggleSort={toggleSort}
         onRowClick={openDetail}
+        onBumpNextBilling={bumpNextBilling}
       />
 
       <ServiceFormModal

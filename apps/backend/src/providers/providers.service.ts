@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@generated/prisma/client';
 import { Provider as ProviderDto, Service as ServiceDto } from '@infra/shared';
 import { ProvidersRepository } from '@repositories/providers/providers.repository';
+import { VDSINA_BASE_URLS } from '@connectors/vdsina/vdsina.types';
 import { CryptoService } from '../crypto/crypto.service';
 import { mapProvider, mapService } from '@common/mappers';
 import { CreateProviderDto, UpdateProviderDto } from './dto/provider.dto';
@@ -41,6 +42,11 @@ export class ProvidersService {
       // Never expose the token; panelId is a non-secret hint.
       const c = this.decodeCredentials(enc);
       return { ...dto, panelId: c.panelId ?? null };
+    }
+    if (kind === 'vdsina') {
+      // Never expose the token; the branch base URL is a non-secret hint.
+      const c = this.decodeCredentials(enc);
+      return { ...dto, baseUrl: c.baseUrl ?? null };
     }
     if (kind === 'beget') {
       // Only the login is a non-secret hint; never expose password/totpSecret/apiPassword.
@@ -117,6 +123,24 @@ export class ProvidersService {
       const creds: Record<string, string> = { token };
       const panelId = dto.panelId ?? base.panelId;
       if (panelId) creds.panelId = panelId;
+      return this.crypto.encrypt(JSON.stringify(creds));
+    }
+    if (kind === 'vdsina') {
+      // JSON { token, baseUrl? }; merge so a base-url-only edit keeps the token. Two official
+      // branches share one API; the base URL picks the branch and its billing currency
+      // (.ru — RUB, .com — USD). Anything else would leak the token to a foreign host.
+      if (!dto.token && !dto.baseUrl) return null;
+      const base = this.decodeCredentials(existingEnc);
+      const token = dto.token ?? base.token;
+      if (!token) throw new BadRequestException('Provide the VDSina API token');
+      const creds: Record<string, string> = { token };
+      const baseUrl = (dto.baseUrl ?? base.baseUrl)?.replace(/\/+$/, '');
+      if (baseUrl && !VDSINA_BASE_URLS[baseUrl]) {
+        throw new BadRequestException(
+          'VDSina base URL must be https://userapi.vdsina.ru or https://userapi.vdsina.com',
+        );
+      }
+      if (baseUrl) creds.baseUrl = baseUrl;
       return this.crypto.encrypt(JSON.stringify(creds));
     }
     if (kind === 'selectel') {
