@@ -67,9 +67,15 @@ export type BillingSeverity = z.infer<typeof billingSeveritySchema>;
 export const upcomingBillingSchema = z.object({
   serviceUuid: uuidSchema.describe('Service UUID'),
   name: z.string().describe('Service name'),
+  providerUuid: uuidSchema.describe('Provider UUID'),
   providerName: z.string().describe('Provider name'),
+  providerKind: z.string().describe('Provider connector kind'),
   // Provider cabinet link (loginUrl), used to deeplink the provider in Telegram alerts.
   providerLoginUrl: z.string().describe('Provider cabinet link').nullable(),
+  providerFaviconLink: z.string().describe('Provider favicon URL').nullable(),
+  providerIconName: z.string().describe('Provider Tabler icon name').nullable(),
+  providerIconBg: z.string().describe('Provider icon tile background').nullable(),
+  countryCode: z.string().describe('Service country code').nullable(),
   nextBillingAt: isoDateSchema.describe('Next billing date'),
   cost: moneySchema.describe('Cost in service currency'),
   currency: currencySchema.describe('Service currency'),
@@ -82,12 +88,34 @@ export const upcomingBillingSchema = z.object({
   severity: billingSeveritySchema.describe('Billing severity level'),
 });
 
+/**
+ * How much to top up a prepaid provider so the upcoming 14-day charges fit the balance.
+ * Amount is in the provider's balance currency (after simulating charges in date order).
+ */
+export const balanceTopUpSchema = z.object({
+  providerUuid: uuidSchema.describe('Provider UUID'),
+  providerName: z.string().describe('Provider name'),
+  providerKind: z.string().describe('Provider connector kind'),
+  providerLoginUrl: z.string().describe('Provider cabinet link').nullable(),
+  providerFaviconLink: z.string().describe('Provider favicon URL').nullable(),
+  providerIconName: z.string().describe('Provider Tabler icon name').nullable(),
+  providerIconBg: z.string().describe('Provider icon tile background').nullable(),
+  amount: moneySchema.describe('Suggested top-up amount'),
+  currency: currencySchema.describe('Balance / top-up currency'),
+});
+export type BalanceTopUp = z.infer<typeof balanceTopUpSchema>;
+
 /** A dated charge already in the past — needs payment or a billing-date refresh. */
 export const overdueBillingSchema = z.object({
   serviceUuid: uuidSchema.describe('Service UUID'),
   name: z.string().describe('Service name'),
   providerName: z.string().describe('Provider name'),
+  providerKind: z.string().describe('Provider connector kind'),
   providerLoginUrl: z.string().describe('Provider cabinet link').nullable(),
+  providerFaviconLink: z.string().describe('Provider favicon URL').nullable(),
+  providerIconName: z.string().describe('Provider Tabler icon name').nullable(),
+  providerIconBg: z.string().describe('Provider icon tile background').nullable(),
+  countryCode: z.string().describe('Service country code').nullable(),
   nextBillingAt: isoDateSchema.describe('Missed billing date'),
   cost: moneySchema.describe('Cost in service currency'),
   currency: currencySchema.describe('Service currency'),
@@ -103,7 +131,11 @@ export const overdueBillingSchema = z.object({
 export const balanceRunwaySchema = z.object({
   providerUuid: uuidSchema.describe('Provider UUID'),
   providerName: z.string().describe('Provider name'),
+  providerKind: z.string().describe('Provider connector kind'),
   providerLoginUrl: z.string().describe('Provider cabinet link').nullable(),
+  providerFaviconLink: z.string().describe('Provider favicon URL').nullable(),
+  providerIconName: z.string().describe('Provider Tabler icon name').nullable(),
+  providerIconBg: z.string().describe('Provider icon tile background').nullable(),
   balance: moneySchema.describe('Current balance'),
   currency: currencySchema.describe('Balance currency'),
   burnPerDay: moneySchema.describe('Estimated daily spend in balance currency'),
@@ -132,6 +164,8 @@ export const analyticsSummarySchema = z.object({
     .describe('Billings already past due, most overdue first'),
   // Prepaid providers (no dated charge) whose balance is estimated to run out soon.
   balanceRunway: z.array(balanceRunwaySchema).describe('Estimated balance runway'),
+  // Top-up needed so prepaid balance covers upcoming dated charges (14-day window).
+  balanceTopUps: z.array(balanceTopUpSchema).describe('Suggested provider top-ups'),
 });
 export type AnalyticsSummary = z.infer<typeof analyticsSummarySchema>;
 

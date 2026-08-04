@@ -16,6 +16,15 @@ export const common = {
       copy: 'Copy',
       copied: 'Copied',
       moreActions: 'More actions',
+      searchPlaceholder: 'Search…',
+      nothingFound: 'Nothing found',
+      iconAppearance: 'Custom icon (optional)',
+      iconAppearanceHint: 'Alternative to the favicon from the link — pick a Tabler icon and color',
+      iconPick: 'Choose icon…',
+      iconUseFavicon: 'Empty',
+      iconClear: 'Clear custom icon',
+      iconBg: 'Background color',
+      iconBgCustom: 'Custom color',
     },
     app: {
       brand: 'Infra Billing',
@@ -23,6 +32,15 @@ export const common = {
       logout: 'Log out',
       starOnGithub: 'Star on GitHub',
       apiDocs: 'API docs',
+      rwp: {
+        title: 'RWP Shop',
+        description:
+          'The best all-in-one bot for VPN commerce: client cabinet, payments, subscriptions, support, referral program and analytics. Works in the browser and as a Telegram Mini App. Integrates with Infra Billing.',
+        promo: '15% off with promo code',
+        copy: 'Copy promo code',
+        copied: 'Promo code copied!',
+        open: 'Open rwp.rw',
+      },
     },
     theme: {
       dark: 'Dark theme',
@@ -83,7 +101,7 @@ export const common = {
       selectProvider: 'Select a provider',
       amountFormat: 'Amount like 100 or 100.50',
       enterDate: 'Enter a date',
-      code3: 'Three-letter code',
+      currencyCode: '3 or 4 letter code',
       ratePositive: 'Rate must be a positive number',
     },
     placeholder: {
@@ -125,6 +143,7 @@ export const common = {
         vdsina: 'VDSina',
         cloudflare: 'Cloudflare',
         stormwall: 'StormWall',
+        doubleservers: 'Double Servers',
         manual: 'Manual',
       },
       rateSource: {
@@ -148,6 +167,15 @@ export const common = {
       copy: 'Копировать',
       copied: 'Скопировано',
       moreActions: 'Другие действия',
+      searchPlaceholder: 'Поиск…',
+      nothingFound: 'Ничего не найдено',
+      iconAppearance: 'Своя иконка (необязательно)',
+      iconAppearanceHint: 'Альтернатива favicon по ссылке - иконка Tabler и цвет фона',
+      iconPick: 'Выбрать иконку…',
+      iconUseFavicon: 'Empty',
+      iconClear: 'Сбросить свою иконку',
+      iconBg: 'Цвет фона',
+      iconBgCustom: 'Свой цвет',
     },
     app: {
       brand: 'Infra Billing',
@@ -155,6 +183,15 @@ export const common = {
       logout: 'Выйти',
       starOnGithub: 'Звезда на GitHub',
       apiDocs: 'Документация API',
+      rwp: {
+        title: 'RWP Shop',
+        description:
+          'Лучший многофункциональный бот для VPN-коммерции: личный кабинет клиента, платежи, подписки, поддержка, партнёрская программа и аналитика. Работает в браузере и как Mini App в Telegram. Интегрируется с Infra Billing.',
+        promo: 'Скидка 15% по промокоду',
+        copy: 'Скопировать промокод',
+        copied: 'Промокод скопирован!',
+        open: 'Открыть rwp.rw',
+      },
     },
     theme: {
       dark: 'Тёмная тема',
@@ -215,7 +252,7 @@ export const common = {
       selectProvider: 'Выберите провайдера',
       amountFormat: 'Сумма вида 100 или 100.50',
       enterDate: 'Укажите дату',
-      code3: 'Код из 3 букв',
+      currencyCode: 'Код из 3-4 букв',
       ratePositive: 'Курс — положительное число',
     },
     placeholder: {
@@ -257,6 +294,7 @@ export const common = {
         vdsina: 'VDSina',
         cloudflare: 'Cloudflare',
         stormwall: 'StormWall',
+        doubleservers: 'Double Servers',
         manual: 'Ручной',
       },
       rateSource: {

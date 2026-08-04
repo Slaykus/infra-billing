@@ -10,6 +10,7 @@
       "!**/*.tsbuildinfo",
       "!package-lock.json",
       "!**/*.tar.gz",
+      "!**/*.svg",
       "!apps/frontend/src/index.css"
     ]
   },

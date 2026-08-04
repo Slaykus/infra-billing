@@ -72,7 +72,12 @@ export function ProviderDetailModal({
       >
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2">
-            <ProviderIcon name={shown.name} src={providerFavicon(shown)} />
+            <ProviderIcon
+              name={shown.name}
+              src={providerFavicon(shown)}
+              iconName={shown.iconName}
+              iconBg={shown.iconBg}
+            />
             <span>{shown.name}</span>
             <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
               {kindLabel(shown.kind)}
@@ -88,7 +93,19 @@ export function ProviderDetailModal({
         <div className="-mr-1 overflow-y-auto pr-1">
           <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_280px]">
             <form id="provider-detail-form" onSubmit={onSubmit} className="space-y-4">
-              <ProviderFormFields form={form} editing kindOptions={kindOptions} />
+              <ProviderFormFields
+                form={form}
+                editing
+                kindOptions={kindOptions}
+                providerUuid={shown.uuid}
+                storedSecrets={{
+                  hasToken: shown.hasToken,
+                  hasPassword: shown.hasPassword,
+                  hasTotpSecret: shown.hasTotpSecret,
+                  hasApiPassword: shown.hasApiPassword,
+                  hasSecretKey: shown.hasSecretKey,
+                }}
+              />
             </form>
 
             <div className="space-y-4">

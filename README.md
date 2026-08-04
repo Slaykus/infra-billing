@@ -5,18 +5,26 @@
 хостинг-провайдеров, тянет баланс аккаунта, список ресурсов, тарифы и даты списаний, складывает
 снапшоты и строит аналитику/прогнозы. Провайдеров без API владелец ведёт вручную.
 
-![Дашборд Infra Billing Panel](docs/screenshot.webp)
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-dark.webp" />
+    <source media="(prefers-color-scheme: light)" srcset="docs/screenshot-light.webp" />
+    <img src="docs/screenshot-light.webp" width="900" alt="Дашборд Infra Billing Panel" />
+  </picture>
+</p>
 
 ## Возможности
 
-- **Провайдеры с API:** Timeweb Cloud, Hetzner Cloud, netcup, HostBill, ISPsystem BILLmanager,
-  Selectel, 4VPS.SU, Netlen, Beget Cloud, Porkbun, Vultr, Linode, Aeza, VDSina, Cloudflare,
-  StormWall. Плюс **Manual** — провайдеры без API ведутся руками.
+- **Провайдеры с API:** Timeweb Cloud, Hetzner Cloud, Hostkey (InvAPI), netcup, HostBill,
+  ISPsystem BILLmanager, Selectel, 4VPS.SU, Netlen, Beget Cloud, Porkbun, Vultr, Linode, Aeza,
+  VDSina, Cloudflare, StormWall, Yandex Cloud, Double Servers. Плюс **Manual** — провайдеры без
+  API ведутся руками.
 - **Автосинк** (по расписанию + кнопкой): баланс + валюта аккаунта, список серверов/услуг, даты
   следующих списаний; история баланса по дням (снапшоты).
-- **Импорт платежей** там, где API отдаёт реестр (BILLmanager — пополнения и списания, HostBill —
-  оплаченные счета, Selectel — потребление, Netlen и Vultr — пополнения и списания, Cloudflare —
-  история биллинга, best-effort). Ручные платежи — в журнале.
+- **Импорт платежей** там, где API отдаёт реестр: пополнения и списания (BILLmanager, Netlen,
+  Vultr, Aeza, VDSina, Double Servers), пополнения и счета (Linode), оплаченные счета (HostBill),
+  потребление (Selectel, Yandex Cloud), история биллинга (Cloudflare, best-effort). Ручные
+  платежи — в журнале.
 - **Аналитика:** месячные/годовые расходы, разрезы по провайдеру / стране / типу / валюте, прогноз
   по будущим списаниям, ближайшие списания с подсветкой критичности.
 - **Мультивалютность:** суммы в своей валюте, конвертация к базовой; курсы ЦБ РФ или ручные.
@@ -24,7 +32,17 @@
   Доставка напрямую или через SOCKS5-прокси, если Telegram с сервера недоступен.
 - **Безопасность:** аккаунт владельца создаётся при первом запуске; вход по **паролю и/или passkey**
   (WebAuthn) — методы переключаются в настройках; сессия — JWT в httpOnly-cookie; токены провайдеров
-  шифруются AES-256-GCM и в API не возвращаются.
+  шифруются AES-256-GCM. В списке и карточке провайдера секретов нет — только признак «задан»;
+  показать их в открытом виде можно лишь по «глазику» в форме, из сессии владельца.
+
+## RWP Shop
+
+[<img src="apps/frontend/src/assets/rwp-logo.svg" width="56" align="left" alt="RWP Shop">](https://rwp.rw)
+
+[**RWP Shop**](https://rwp.rw) — лучший многофункциональный бот для VPN-коммерции на Remnawave:
+личный кабинет клиента, платежи, подписки, поддержка, партнёрская программа и аналитика. Работает
+в браузере и как Mini App в Telegram. Есть интеграция с Infra Billing.
+**Скидка 15%** по промокоду **`MISH`**.
 
 ## Стек
 
@@ -76,6 +94,10 @@ billing.example.com {
     reverse_proxy 127.0.0.1:8080
 }
 ```
+
+Caddy по умолчанию не ограничивает ожидание ответа бэкенда. В прокси, где такой лимит есть,
+поднимите его до ≥ 120s — ручной синк всех провайдеров может отвечать до ~2 минут
+(в nginx это `proxy_read_timeout`, по умолчанию 60s).
 
 ### Обновление
 
@@ -149,7 +171,10 @@ docker compose exec infra-billing cli reset-admin --yes
 curl -H "Authorization: Bearer ib_…" https://infra-billing/api/providers
 ```
 
-Токены имеют полный доступ к данным (провайдеры, сервисы, платежи, синк, настройки, аналитика)
+Токены имеют полный доступ к данным (провайдеры, сервисы, платежи, синк, настройки, аналитика),
+но **не к секретам провайдеров**: расшифровка кредов доступна только из сессии владельца, токену
+на этот роут отвечают 403.
+
 ---
 
 ## Провайдеры — где взять доступ
@@ -158,7 +183,12 @@ curl -H "Authorization: Bearer ib_…" https://infra-billing/api/providers
 возвращаются). После сохранения провайдер сразу синкается.
 
 - **Timeweb Cloud** — ЛК → «API и Terraform» → создать токен.
-- **Hetzner Cloud** — Project → Security → API Tokens (read). Баланса в API нет — только серверы.
+- **Hetzner Cloud** — Project → Security → API Tokens (read). Баланса/счетов/платежей в API нет —
+  синкаем серверы, месячный cap тарифа, страну и синтетическую дату списания (1-е число следующего
+  месяца) для upcoming-алертов.
+- **Hostkey** — InvAPI (`invapi.hostkey.ru`) → меню пользователя → API-ключи. Тянет credit-баланс
+  (WHMCS), серверы с `prebill_rate` / периодом и синтетическую дату списания (1-е число следующего
+  месяца). Реестр платежей в v1 не импортируется.
 - **netcup** — кнопка «Авторизоваться через netcup» в форме: войдите в SCP в браузере и подтвердите
   (OAuth2 device flow, токен подтянется сам). Баланса/цен/списаний в API нет — только серверы
   (страна определяется по дата-центру).
@@ -198,6 +228,18 @@ curl -H "Authorization: Bearer ib_…" https://infra-billing/api/providers
 - **StormWall** — API-ключ (личный кабинет → API-ключ). DDoS-защита/WAF: баланса, цен и платежей
   в API нет вообще (услуги вводятся с ценой вручную) — тянет только список услуг (`/v3/services`),
   для защищённых доменов — их реальное имя.
+- **Yandex Cloud** — авторизованный ключ (JSON) сервисного аккаунта целиком: в консоли создать
+  сервисный аккаунт, выдать ему `viewer` на папку (инвентарь) и `billing.accounts.viewer` на
+  биллинг-аккаунт (баланс и расходы), затем «Создать авторизованный ключ» — не статический ключ
+  доступа. Папку и биллинг-аккаунт панель определяет сама и показывает бейджами прямо в форме.
+  Тянет **только Compute-инстансы** (управляемые БД, бакеты, k8s в инвентарь не попадают), баланс
+  биллинг-аккаунта и историю потребления по дням. Цен в Compute API нет — стоимость считается из
+  отчёта потребления, а он отдаётся не чаще **1 запроса в минуту**, так что на аккаунте с
+  несколькими серверами цена и история могут подтянуться не с первого синка.
+- **Double Servers** — email + пароль от ЛК (`doubleservers.com/login`). Опц. TOTP-секрет, если
+  включена 2FA по приложению. Тянет баланс (EUR), VPS (цена, дата продления `expires_at`) и
+  историю: пополнения (`/api/billing/history`) + списания по серверам (`/api/servers/{id}/history`).
+  Публичного API-токена нет — синк логинится в панель.
 - **Manual** — без API, всё вводится руками.
 
 ## Telegram-уведомления
@@ -231,3 +273,12 @@ make dev                # backend :8080 + frontend :5173 (Vite проксиру�
 Открыть <http://localhost:5173>. `make migrate`/`make studio` сами ходят в БД на `127.0.0.1`
 (см. `LOCAL_DATABASE_URL` в Makefile). Локальный билд образа: `make docker-build` + `make docker-up`
 (использует `docker-compose.yml` со сборкой из исходников).
+
+Превью дашборда в шапке README обновляются так (нужны запущенные `make dev` и креды владельца):
+
+```bash
+# один раз, если нет системного Chrome: npx playwright install chromium
+CAPTURE_USER=admin CAPTURE_PASSWORD='…' make docs-screenshot
+```
+
+Скрипт пишет `docs/screenshot-{dark,light}.webp` (Retina → рамка → WebP).

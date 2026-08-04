@@ -4,13 +4,23 @@ import type {
   NetcupDevicePollResult,
   NetcupDeviceStart,
   Provider,
+  ProviderCredentialsReveal,
   SyncRun,
   UpdateProvider,
+  YandexDiscover,
+  YandexDiscoverResult,
 } from '@infra/shared';
 import { api } from './client';
 import { API_PATH } from '@infra/shared';
 
 const KEY = ['providers'];
+
+export type SecretField = keyof ProviderCredentialsReveal;
+
+export async function revealProviderCredentials(uuid: string): Promise<ProviderCredentialsReveal> {
+  return (await api.get<ProviderCredentialsReveal>(API_PATH.PROVIDERS.CREDENTIALS_REVEAL(uuid)))
+    .data;
+}
 
 export function useProviders() {
   return useQuery({
@@ -95,5 +105,22 @@ export function useNetcupDevicePoll() {
           deviceCode,
         })
       ).data,
+  });
+}
+
+/**
+ * Resolve the Yandex scope (folders + billing account) from a pasted key or an existing provider.
+ * A query (not a mutation) so the 200 result survives StrictMode's double mount and is cached per
+ * input - a mutate-scoped callback would be dropped on the throwaway first mount, leaving the form
+ * stuck on "Resolving". Pass `null` to stay idle (wrong kind / incomplete key).
+ */
+export function useYandexDiscover(body: YandexDiscover | null) {
+  return useQuery({
+    queryKey: ['yandex-discover', body],
+    enabled: body != null,
+    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
+    queryFn: async () =>
+      (await api.post<YandexDiscoverResult>(API_PATH.PROVIDERS.YANDEX_DISCOVER, body)).data,
   });
 }

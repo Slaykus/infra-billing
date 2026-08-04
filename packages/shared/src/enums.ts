@@ -1,9 +1,10 @@
 import { z } from 'zod';
 
-/** Connector kinds. API-backed: timeweb, hetzner, netcup, hostbill, billmgr, selectel, 4vps, netlen, beget, porkbun, vultr, linode, aeza, vdsina, cloudflare, stormwall. manual = no sync. */
+/** Connector kinds. API-backed: timeweb, hetzner, hostkey, netcup, hostbill, billmgr, selectel, 4vps, netlen, beget, porkbun, vultr, linode, aeza, vdsina, cloudflare, stormwall, yandex, doubleservers. manual = no sync. */
 export const providerKindSchema = z.enum([
   'timeweb',
   'hetzner',
+  'hostkey',
   'netcup',
   'hostbill',
   'billmgr',
@@ -18,6 +19,8 @@ export const providerKindSchema = z.enum([
   'vdsina',
   'cloudflare',
   'stormwall',
+  'yandex',
+  'doubleservers',
   'manual',
 ]);
 export type ProviderKind = z.infer<typeof providerKindSchema>;
@@ -53,6 +56,10 @@ export const PERIODS = periodSchema.options;
 export const syncStatusSchema = z.enum(['running', 'ok', 'error']);
 export type SyncStatus = z.infer<typeof syncStatusSchema>;
 
-/** Exchange-rate source. */
+/** Fiat rate source, picked in settings. */
 export const rateSourceSchema = z.enum(['cbr', 'manual']);
 export type RateSource = z.infer<typeof rateSourceSchema>;
+
+/** What produced a stored rate row. Wider than `rateSourceSchema` — USDT has its own sources. */
+export const rateOriginSchema = z.enum(['cbr', 'manual', 'rapira', 'cmc']);
+export type RateOrigin = z.infer<typeof rateOriginSchema>;

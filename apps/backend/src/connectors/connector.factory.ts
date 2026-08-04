@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AezaConnector } from './aeza/aeza.connector';
+import { parseAezaCredentials } from './aeza/aeza.types';
 import { FourVpsConnector } from './4vps/4vps.connector';
 import type { FourVpsCredentials } from './4vps/4vps.types';
 import { BegetConnector } from './beget/beget.connector';
@@ -9,7 +10,10 @@ import type { BillmgrCredentials } from './billmgr/billmgr.types';
 import { CloudflareConnector } from './cloudflare/cloudflare.connector';
 import type { CloudflareCredentials } from './cloudflare/cloudflare.types';
 import { Connector } from './connector.interface';
+import { DoubleServersConnector } from './doubleservers/doubleservers.connector';
+import type { DoubleServersCredentials } from './doubleservers/doubleservers.types';
 import { HetznerConnector } from './hetzner/hetzner.connector';
+import { HostkeyConnector } from './hostkey/hostkey.connector';
 import { HostbillConnector } from './hostbill/hostbill.connector';
 import type { HostbillCredentials } from './hostbill/hostbill.types';
 import { LinodeConnector } from './linode/linode.connector';
@@ -24,6 +28,8 @@ import { TimewebConnector } from './timeweb/timeweb.connector';
 import { VdsinaConnector } from './vdsina/vdsina.connector';
 import type { VdsinaCredentials } from './vdsina/vdsina.types';
 import { VultrConnector } from './vultr/vultr.connector';
+import { YandexConnector } from './yandex/yandex.connector';
+import type { YandexCredentials } from './yandex/yandex.types';
 
 @Injectable()
 export class ConnectorFactory {
@@ -37,6 +43,8 @@ export class ConnectorFactory {
         return new TimewebConnector(token);
       case 'hetzner':
         return new HetznerConnector(token);
+      case 'hostkey':
+        return new HostkeyConnector(token);
       case 'netlen':
         // Netlen secret is the raw API key (single string, sent as the X-API-Key header).
         return new NetlenConnector(token);
@@ -68,8 +76,9 @@ export class ConnectorFactory {
         // Linode secret is the raw Personal Access Token (sent as the Authorization Bearer header).
         return new LinodeConnector(token);
       case 'aeza':
-        // Aeza secret is the raw API key (single string, sent as the X-API-KEY header).
-        return new AezaConnector(token);
+        // Aeza secret is JSON: { token, baseUrl? } — baseUrl picks the .net/.ru branch. Providers
+        // saved before the branch field hold the bare API key; the parser accepts both.
+        return new AezaConnector(parseAezaCredentials(token));
       case 'vdsina':
         // VDSina secret is JSON: { token, baseUrl? } — baseUrl picks the .ru/.com branch.
         return new VdsinaConnector(JSON.parse(token) as VdsinaCredentials);
@@ -79,6 +88,13 @@ export class ConnectorFactory {
       case 'stormwall':
         // StormWall secret is the raw API key (single string, sent as the x-api-key header).
         return new StormwallConnector(token);
+      case 'yandex':
+        // Yandex Cloud secret is JSON: { keyId, serviceAccountId, privateKey, folderId?,
+        // billingAccountId? }, normalized from the service-account authorized key.
+        return new YandexConnector(JSON.parse(token) as YandexCredentials);
+      case 'doubleservers':
+        // Double Servers secret is JSON: { username (email), password, totpSecret? }.
+        return new DoubleServersConnector(JSON.parse(token) as DoubleServersCredentials);
       default:
         throw new Error(`Connector for kind="${kind}" is not supported`);
     }

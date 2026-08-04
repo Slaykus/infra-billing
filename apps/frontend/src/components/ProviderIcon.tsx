@@ -1,38 +1,85 @@
-import { useEffect, useState } from 'react';
+import { createElement, useEffect, useState } from 'react';
+import { DEFAULT_ICON_BG, iconFgForBg, resolveTablerIcon } from '@/components/tablerIconCatalog';
+import { faviconRootFallback } from '@/utils/favicon';
 
 // Neutral initial avatar, swapped for the favicon only once it loads. Google's "no favicon"
-// placeholder is a ~16px globe, so reject anything that small to avoid the blurry globe.
+// placeholder is a ~16px globe, so reject anything that small to avoid the blurry globe. When the
+// primary favicon 404s or is too small (some dashboard subdomains have none), fall back to the
+// registrable domain's icon before settling on the initial. A custom Tabler icon + bg overrides
+// the favicon path entirely.
 export function ProviderIcon({
   name,
   src,
+  iconName,
+  iconBg,
   size = 22,
 }: {
   name: string;
   src: string | null;
+  iconName?: string | null;
+  iconBg?: string | null;
   size?: number;
 }) {
-  // Keyed by the src it was loaded for: when src changes, the derived favicon below falls back
-  // to the initial immediately during render — no reset effect, no flash of the previous icon.
-  const [loaded, setLoaded] = useState<{ src: string; ok: boolean } | null>(null);
+  const TablerIcon = resolveTablerIcon(iconName);
+  const fallback = faviconRootFallback(src);
+  const key = `${src ?? ''}|${fallback ?? ''}`;
+  const [resolved, setResolved] = useState<{ key: string; src: string | null }>({
+    key: '',
+    src: null,
+  });
 
   useEffect(() => {
-    if (!src) return;
-    const img = new Image();
-    img.onload = () => {
-      setLoaded({ src, ok: img.naturalWidth > 16 });
+    if (TablerIcon) return;
+    const candidates = [src, fallback].filter((c): c is string => !!c);
+    if (candidates.length === 0) {
+      setResolved({ key, src: null });
+      return;
+    }
+    let cancelled = false;
+    const tryAt = (i: number) => {
+      if (i >= candidates.length) {
+        if (!cancelled) setResolved({ key, src: null });
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        if (cancelled) return;
+        if (img.naturalWidth > 16) setResolved({ key, src: candidates[i] });
+        else tryAt(i + 1);
+      };
+      img.onerror = () => {
+        if (!cancelled) tryAt(i + 1);
+      };
+      img.src = candidates[i];
     };
-    img.src = src;
+    tryAt(0);
     return () => {
-      // A stale onload must not clobber the state that belongs to the current src.
-      img.onload = null;
+      cancelled = true;
     };
-  }, [src]);
+  }, [TablerIcon, key, src, fallback]);
 
-  const favicon = loaded && loaded.src === src && loaded.ok ? src : null;
+  const favicon = !TablerIcon && resolved.key === key ? resolved.src : null;
   const initial = (name.trim().charAt(0) || '?').toUpperCase();
+  const bg = iconBg || DEFAULT_ICON_BG;
+  const fg = iconFgForBg(bg);
+  const glyph = Math.max(12, Math.round(size * 0.64));
 
-  // Favicon and initial share one framed tile, so rows never mix icon footprints
-  // (transparent favicons used to render frameless and read as a different size).
+  if (TablerIcon) {
+    return (
+      <div
+        className="flex shrink-0 items-center justify-center rounded-md border border-black/10 select-none"
+        style={{ width: size, height: size, backgroundColor: bg, color: fg }}
+      >
+        {createElement(TablerIcon, {
+          size: glyph,
+          stroke: 1.75,
+          color: fg,
+          'aria-hidden': true,
+        })}
+      </div>
+    );
+  }
+
   return (
     <div
       className="flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-secondary select-none"

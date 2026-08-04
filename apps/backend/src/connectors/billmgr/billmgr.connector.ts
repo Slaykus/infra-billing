@@ -41,6 +41,79 @@ const TOTP_FAILED_MESSAGE =
   'BILLmanager: failed to confirm login via OTP — check the TOTP secret (the same one as in your authenticator app) ' +
   'and the server clock synchronization.';
 
+// Some panels sit behind Cloudflare (senko), which rejects Node's TLS fingerprint outright: no header set
+// gets through (verified — curl passes from the same IP, axios and node:https do not), so there is nothing
+// to work around on our side and the request never reaches BILLmanager. Say that, and name the Ray ID —
+// it is the first thing the hoster's support asks for.
+const CF_BLOCKED_MESSAGE =
+  'BILLmanager: the request was blocked by Cloudflare in front of the panel and never reached BILLmanager. ' +
+  'Ask the hoster to allow API access for this server (a WAF skip rule for /billmgr, or an IP allowlist).';
+
+/**
+ * Cloudflare serves its own HTML instead of the panel's JSON when it blocks: bot protection renders
+ * "Just a moment...", a WAF rule renders "Attention Required!", IP/rate blocks render an "Error 10xx" page.
+ * Match those markers on a block status only — Cloudflare brands origin error pages too (521/522/524), and
+ * those mean the panel is down, not that we were blocked; a bare "cloudflare" match would send the owner to
+ * open a WAF ticket for an outage. The slice bounds the regex against a multi-KB page; the page itself is
+ * never echoed (it would land in the DB, a UI tooltip and a Telegram message).
+ */
+export function isCloudflareBlock(status: number | undefined, body: unknown): boolean {
+  if (status !== 403 && status !== 429 && status !== 503) return false;
+  if (typeof body !== 'string') return false;
+  return /just a moment|attention required|error 10\d{2}|cf-error-details/i.test(
+    body.slice(0, 4096),
+  );
+}
+
+// Some hosters gate the panel with their own anti-bot front instead of Cloudflare's edge: h2.nexus
+// answers HTTP 200 with a CAPTCHA page (Cloudflare Turnstile widget) on every path, /billmgr
+// included, so the non-2xx classification below never sees it and auth died with a cryptic
+// "session was not obtained". Like the Cloudflare case, there is nothing to work around on our
+// side — the challenge needs a browser and a human.
+const CHALLENGE_BLOCKED_MESSAGE =
+  'BILLmanager: an anti-bot check in front of the panel answered with a CAPTCHA page instead of JSON — ' +
+  'the request never reached BILLmanager. Ask the hoster to allow API access for this server ' +
+  '(a security-check exemption for /billmgr, or an IP allowlist).';
+
+/**
+ * A challenge page can't be confused with the panel: out=json answers arrive parsed into `doc`,
+ * so a string body carrying challenge markers (Turnstile widget, Cloudflare interstitials,
+ * DDoS-Guard) is always the gate speaking, whatever the status. The slice bounds the regex
+ * against a multi-KB page; the page itself is never echoed (DB / UI tooltip / Telegram).
+ */
+export function isChallengePage(body: unknown): boolean {
+  if (typeof body !== 'string') return false;
+  return /turnstile|challenges\.cloudflare\.com|just a moment|attention required|security check|verify you.re human|ddos-?guard/i.test(
+    body.slice(0, 4096),
+  );
+}
+
+/**
+ * BILLmanager reports its own failures as doc.error at HTTP 200, so a non-2xx never comes from the API —
+ * it comes from whatever fronts the panel (its web server: 404 on a wrong baseUrl, 5xx when the CGI is down;
+ * or a CDN/WAF). Such bodies carry no useful message, so report the status and let the Cloudflare case speak
+ * for itself. Never build the message out of the AxiosError itself: its config holds the func=auth body (the
+ * plaintext password) and the `auth` session id, and sync errors are persisted to lastSyncError, logged and
+ * pushed to Telegram. Only the status, the block markers, the cf-ray header and the func name are safe.
+ */
+export function billmgrHttpError(e: unknown): Error {
+  // Sync-wide aborts (AbortController) must stay recognizable as cancellations.
+  if (axios.isCancel(e)) return e instanceof Error ? e : new Error('canceled');
+  if (!axios.isAxiosError(e)) return e instanceof Error ? e : new Error(String(e));
+  const status = e.response?.status;
+  if (isCloudflareBlock(status, e.response?.data)) {
+    const ray = e.response?.headers?.['cf-ray'];
+    return new Error(CF_BLOCKED_MESSAGE + (typeof ray === 'string' ? ` (Ray ID ${ray})` : ''));
+  }
+  const func = typeof e.config?.params?.func === 'string' ? ` (${e.config.params.func})` : '';
+  // No response → transport failure (DNS/refused/timeout); axios's own message is safe and specific.
+  return new Error(
+    status
+      ? `BILLmanager${func}: panel returned HTTP ${status}`
+      : `BILLmanager${func}: ${e.message}`,
+  );
+}
+
 /**
  * ISPsystem BILLmanager (https://docs.ispsystem.com/billmanager). CGI API at
  * `{base}/billmgr?func=...&out=json`, responses wrapped in `doc`, scalars as {"$":...}. No npm SDK.
@@ -63,6 +136,24 @@ export class BillmgrConnector implements Connector {
       baseURL: creds.baseUrl.replace(/\/+$/, ''),
       timeout: REQUEST_TIMEOUT_MS,
     });
+    // A non-2xx is never BILLmanager itself — turn it into a message that names the real reason
+    // instead of leaving axios's bare "Request failed with status code 403" in lastSyncError.
+    // A 2xx can still be an anti-bot gate answering with a CAPTCHA page (h2.nexus) — same
+    // etiquette as billmgrHttpError: only the request id may enter the message, never the page.
+    this.http.interceptors.response.use(
+      (r) => {
+        if (isChallengePage(r.data)) {
+          const id = r.headers?.['cf-ray'] ?? r.headers?.['x-request'];
+          throw new Error(
+            CHALLENGE_BLOCKED_MESSAGE + (typeof id === 'string' ? ` (request id ${id})` : ''),
+          );
+        }
+        return r;
+      },
+      (e) => {
+        throw billmgrHttpError(e);
+      },
+    );
   }
 
   kind(): string {
@@ -83,7 +174,15 @@ export class BillmgrConnector implements Connector {
     });
     if (data?.doc?.error) throw new Error(`BILLmanager: ${billmgrError(data.doc.error)}`);
     const id = data?.doc?.auth?.$id ?? data?.doc?.session?.$id;
-    if (!id) throw new Error('BILLmanager: session was not obtained');
+    // A 200 that isn't a doc and isn't a challenge (the interceptor caught those) is almost
+    // always a base URL pointing at a web page instead of the /billmgr CGI endpoint.
+    if (!id) {
+      throw new Error(
+        typeof data === 'string'
+          ? 'BILLmanager: the panel answered with a web page instead of JSON — check that the base URL points at the /billmgr endpoint'
+          : 'BILLmanager: session was not obtained',
+      );
+    }
 
     // The session id alone doesn't prove the session is usable: with 2FA enabled, func=auth
     // returns an id but the session is unconfirmed, and whoami (like every data func) comes

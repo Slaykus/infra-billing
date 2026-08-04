@@ -49,15 +49,19 @@ export const API_SUB = {
   PROVIDER_SYNC: `${ID}/sync`,
   PROVIDER_SYNC_RUNS: `${ID}/sync-runs`,
   PROVIDER_BALANCE_HISTORY: `${ID}/balance-history`,
+  PROVIDER_CREDENTIALS_REVEAL: `${ID}/credentials/reveal`,
   // netcup OAuth2 device flow (in-panel token acquisition).
   PROVIDER_NETCUP_DEVICE_START: 'netcup/device/start',
   PROVIDER_NETCUP_DEVICE_POLL: 'netcup/device/poll',
   INCOME_SYNC: 'sync',
   INCOME_SUMMARY: 'summary',
   INCOME_FORECAST: 'forecast',
+  // Yandex Cloud folder / billing-account discovery for the form dropdowns.
+  PROVIDER_YANDEX_DISCOVER: 'yandex/discover',
   ANALYTICS_SUMMARY: 'summary',
   ANALYTICS_FORECAST: 'forecast',
   RATES_REFRESH: 'refresh',
+  RATES_BACKFILL: 'backfill',
   NOTIFICATIONS_CHECK: 'check',
   NOTIFICATIONS_TEST: 'test',
 } as const;
@@ -92,8 +96,11 @@ export const API_PATH = {
     SYNC_RUNS: (uuid: string) => pathId(API.PROVIDERS, API_SUB.PROVIDER_SYNC_RUNS, uuid),
     BALANCE_HISTORY: (uuid: string) =>
       pathId(API.PROVIDERS, API_SUB.PROVIDER_BALANCE_HISTORY, uuid),
+    CREDENTIALS_REVEAL: (uuid: string) =>
+      pathId(API.PROVIDERS, API_SUB.PROVIDER_CREDENTIALS_REVEAL, uuid),
     NETCUP_DEVICE_START: path(API.PROVIDERS, API_SUB.PROVIDER_NETCUP_DEVICE_START),
     NETCUP_DEVICE_POLL: path(API.PROVIDERS, API_SUB.PROVIDER_NETCUP_DEVICE_POLL),
+    YANDEX_DISCOVER: path(API.PROVIDERS, API_SUB.PROVIDER_YANDEX_DISCOVER),
   },
   PROJECTS: {
     ROOT: path(API.PROJECTS),
@@ -124,6 +131,7 @@ export const API_PATH = {
   RATES: {
     ROOT: path(API.RATES),
     REFRESH: path(API.RATES, API_SUB.RATES_REFRESH),
+    BACKFILL: path(API.RATES, API_SUB.RATES_BACKFILL),
   },
   SETTINGS: path(API.SETTINGS),
   NOTIFICATIONS: {

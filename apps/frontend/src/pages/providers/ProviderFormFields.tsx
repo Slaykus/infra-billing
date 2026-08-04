@@ -2,6 +2,8 @@ import { IconKey, IconServer2 } from '@tabler/icons-react';
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { FormSection } from '@/components/FormSection';
+import { IconAppearanceFields } from '@/components/IconAppearanceFields';
+import { DEFAULT_ICON_BG, resolveTablerIcon } from '@/components/tablerIconCatalog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,20 +17,45 @@ import {
 import { ProviderCredentialFields } from './ProviderCredentialFields';
 import { DEFAULT_LOGIN_URLS, type FormValues } from './providerForm';
 
+export type StoredSecretFlags = {
+  hasToken?: boolean;
+  hasPassword?: boolean;
+  hasTotpSecret?: boolean;
+  hasApiPassword?: boolean;
+  hasSecretKey?: boolean;
+};
+
 interface ProviderFormFieldsProps {
   form: UseFormReturn<FormValues>;
   editing: boolean;
   kindOptions: { value: string; label: string }[];
+  // Passed in edit mode so Yandex discovery can reuse the stored key.
+  providerUuid?: string;
+  storedSecrets?: StoredSecretFlags;
 }
 
 // The provider form body, shared by the create modal and the detail modal (editing mode).
-export function ProviderFormFields({ form, editing, kindOptions }: ProviderFormFieldsProps) {
+export function ProviderFormFields({
+  form,
+  editing,
+  kindOptions,
+  providerUuid,
+  storedSecrets,
+}: ProviderFormFieldsProps) {
   const { t } = useTranslation();
   const nameError = form.formState.errors.name;
   const kind = form.watch('kind');
+  const previewName = form.watch('name');
+  const iconName = form.watch('iconName');
+  const iconBg = form.watch('iconBg');
+  const HeaderIcon = resolveTablerIcon(iconName) ?? IconServer2;
   return (
     <>
-      <FormSection icon={IconServer2} title={t('providers.section.main')}>
+      <FormSection
+        icon={HeaderIcon}
+        iconBg={iconName ? iconBg || DEFAULT_ICON_BG : null}
+        title={t('providers.section.main')}
+      >
         <div className="space-y-2">
           <Label htmlFor="provider-name">
             {t('providers.field.name')} <span className="text-destructive">*</span>
@@ -100,6 +127,13 @@ export function ProviderFormFields({ form, editing, kindOptions }: ProviderFormF
             <p className="text-xs text-destructive">{form.formState.errors.loginUrl.message}</p>
           )}
         </div>
+        <IconAppearanceFields
+          previewName={previewName}
+          iconName={iconName}
+          iconBg={iconBg}
+          onIconNameChange={(v) => form.setValue('iconName', v, { shouldDirty: true })}
+          onIconBgChange={(v) => form.setValue('iconBg', v, { shouldDirty: true })}
+        />
         <Controller
           control={form.control}
           name="isPostpaid"
@@ -125,7 +159,14 @@ export function ProviderFormFields({ form, editing, kindOptions }: ProviderFormF
       {/* Manual providers have no credentials — skip the empty section shell. */}
       {kind !== 'manual' && (
         <FormSection icon={IconKey} title={t('providers.section.credentials')}>
-          <ProviderCredentialFields form={form} editing={editing} />
+          {/* Keyed by provider: switching rows remounts the inputs, so a reveal still in flight
+              for the previous provider can never resolve into this one's form. */}
+          <ProviderCredentialFields
+            key={providerUuid ?? 'new'}
+            form={form}
+            providerUuid={providerUuid}
+            storedSecrets={storedSecrets}
+          />
         </FormSection>
       )}
     </>

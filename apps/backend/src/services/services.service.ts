@@ -7,6 +7,9 @@ import { ServicesRepository } from '@repositories/services/services.repository';
 import { mapService } from '@common/mappers';
 import { CreateServiceDto, ServiceQueryDto, UpdateServiceDto } from './dto/service.dto';
 
+/** Decimal money string, as produced by toFixed(2) and accepted by the API. */
+const MONEY_RE = /^-?\d+(\.\d{1,2})?$/;
+
 @Injectable()
 export class ServicesService {
   constructor(
@@ -44,17 +47,72 @@ export class ServicesService {
     if (!existing) throw new NotFoundException('Service not found');
 
     const data: Prisma.ServiceUpdateInput = {};
+    const meta = { ...((existing.meta ?? {}) as Record<string, unknown>) };
+    let metaDirty = false;
+
+    const baselineName =
+      typeof meta.syncedName === 'string'
+        ? meta.syncedName
+        : !existing.nameOverridden
+          ? existing.name
+          : undefined;
+    const baselineType =
+      typeof meta.syncedType === 'string'
+        ? meta.syncedType
+        : !existing.typeOverridden
+          ? existing.type
+          : undefined;
+    // Guard the stored baseline: meta is free-form JSON, and a malformed string would
+    // blow up the Decimal comparison below.
+    const syncedCost =
+      typeof meta.syncedCost === 'string' && MONEY_RE.test(meta.syncedCost)
+        ? meta.syncedCost
+        : undefined;
+    const baselineCost =
+      syncedCost ?? (!existing.costOverridden ? existing.cost.toFixed(2) : undefined);
+
+    // The form submits every field. Mark overridden only when the value leaves the
+    // provider baseline; reverting to that baseline clears the flag. Seed synced*
+    // on first override so later edits can detect a revert without waiting for sync.
     if (dto.name !== undefined) {
-      data.name = dto.name;
-      // Manual name edit. Sync must not overwrite it.
-      data.nameOverridden = true;
+      if (dto.name !== existing.name) data.name = dto.name;
+      if (baselineName != null) {
+        if (meta.syncedName !== baselineName) {
+          meta.syncedName = baselineName;
+          metaDirty = true;
+        }
+        data.nameOverridden = dto.name !== baselineName;
+      } else if (dto.name !== existing.name) {
+        data.nameOverridden = true;
+      }
     }
-    if (dto.type !== undefined) data.type = dto.type;
+    if (dto.type !== undefined) {
+      if (dto.type !== existing.type) data.type = dto.type;
+      if (baselineType != null) {
+        if (meta.syncedType !== baselineType) {
+          meta.syncedType = baselineType;
+          metaDirty = true;
+        }
+        data.typeOverridden = dto.type !== baselineType;
+      } else if (dto.type !== existing.type) {
+        data.typeOverridden = true;
+      }
+    }
     if (dto.cost !== undefined) {
-      data.cost = dto.cost;
-      // Manual price edit. Sync must not overwrite it.
-      data.costOverridden = true;
+      if (!existing.cost.equals(dto.cost)) data.cost = dto.cost;
+      if (baselineCost != null) {
+        if (meta.syncedCost !== baselineCost) {
+          meta.syncedCost = baselineCost;
+          metaDirty = true;
+        }
+        // Compare numerically, not as strings: the form may submit "10.5" where the
+        // baseline is "10.50" — same price, so it must not count as an override.
+        data.costOverridden = !new Prisma.Decimal(baselineCost).equals(dto.cost);
+      } else if (!existing.cost.equals(dto.cost)) {
+        data.costOverridden = true;
+      }
     }
+    if (metaDirty) data.meta = meta as Prisma.InputJsonValue;
     if (dto.currency !== undefined) data.currency = dto.currency;
     if (dto.period !== undefined) data.period = dto.period;
     if (dto.countryCode !== undefined) data.countryCode = dto.countryCode;

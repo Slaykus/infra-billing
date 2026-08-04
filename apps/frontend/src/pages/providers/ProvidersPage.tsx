@@ -25,6 +25,7 @@ import { notifyError, notifySuccess } from '@/utils/notify';
 import { ProviderDetailModal } from './ProviderDetailModal';
 import { ProviderFormModal } from './ProviderFormModal';
 import { ProvidersTable } from './ProvidersTable';
+import { DEFAULT_ICON_BG, canonicalTablerIconName } from '@/components/tablerIconCatalog';
 import {
   EMPTY_FORM,
   type FormValues,
@@ -70,7 +71,9 @@ export function ProvidersPage() {
       name: p.name,
       kind: p.kind,
       loginUrl: p.loginUrl ?? '',
-      // Non-secret fields are prefilled; password/totpSecret stay blank ("keep unchanged").
+      iconName: p.iconName ?? '',
+      iconBg: p.iconBg ?? '',
+      // Non-secret fields are prefilled; secrets stay blank until reveal-on-demand.
       baseUrl: p.baseUrl ?? '',
       username: p.username ?? '',
       accountId: p.accountId ?? '',
@@ -93,14 +96,16 @@ export function ProvidersPage() {
   };
 
   const submit = form.handleSubmit(async (v) => {
-    if (!selected) {
-      const err = validateProviderCredentials(v, t);
-      if (err) {
-        notifyError(err);
-        return;
-      }
+    const err = validateProviderCredentials(v, t, { requireCreds: !selected });
+    if (err) {
+      notifyError(err);
+      return;
     }
     const creds = buildCredentials(v);
+    const iconName = canonicalTablerIconName(v.iconName);
+    const icon = iconName
+      ? { iconName, iconBg: v.iconBg || DEFAULT_ICON_BG }
+      : { iconName: null as string | null, iconBg: null as string | null };
     try {
       let saved: Provider;
       if (selected) {
@@ -109,6 +114,7 @@ export function ProvidersPage() {
           dto: {
             name: v.name,
             loginUrl: v.loginUrl || undefined,
+            ...icon,
             isPostpaid: v.isPostpaid,
             ...creds,
           },
@@ -119,6 +125,7 @@ export function ProvidersPage() {
           name: v.name,
           kind: v.kind as ProviderKind,
           loginUrl: v.loginUrl || undefined,
+          ...(iconName ? { iconName, iconBg: v.iconBg || DEFAULT_ICON_BG } : {}),
           isPostpaid: v.isPostpaid,
           ...creds,
         });

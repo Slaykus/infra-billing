@@ -63,6 +63,13 @@ export const providers = {
       apiTokenDescLinode:
         'Linode → Account → API Tokens → create a Personal Access Token (read access to Account and Linodes)',
       apiTokenDescAeza: 'Aeza panel → API Keys → create an API key',
+      apiBaseUrlDescAeza:
+        'Branch panel: https://my.aeza.net (default) or https://my.aeza.ru (Russian branch). The branches are independent — the key must come from the same panel.',
+      apiTokenDescHostkey:
+        'Go to invapi.hostkey.ru. Open "Username" → "API keys" → "Add key", enter any name, then "Create". Then copy the key and finish by pressing "OK".',
+      apiTokenDescTimeweb: 'Go to "API and Terraform" → "Add token", enter any name, then "Issue".',
+      apiTokenDescHetzner:
+        'Go to console.hetzner.com. Open "Projects" → "Default" → "Security" → "API Tokens" → "Generate API Token", enter any name, then "Generate API Token".',
       apiTokenDescVdsina:
         'VDSina control panel → user list → permanent API token, sent as the Authorization header',
       apiBaseUrlDescVdsina:
@@ -71,6 +78,25 @@ export const providers = {
         'Cloudflare → My Profile → API Tokens → create a token with Registrar: Domains:Read and Billing:Read',
       cloudflareAccountIdDesc: 'Cloudflare account ID (dashboard URL or GET /accounts)',
       apiTokenDescStormwall: 'StormWall personal cabinet → API key, sent as the x-api-key header',
+      yandexKey: 'Authorized key (JSON)',
+      yandexKeySetup: 'Setup:',
+      yandexKeyStep1:
+        'Go to center.yandex.cloud and open "All services" → "Monitoring & Resources" → "Identity and Access Management" → "Service accounts".',
+      yandexKeyStep2:
+        'Click "Create service account", enter any name, then "Roles in the folder" → "Add role" → "viewer", and finish with "Create".',
+      yandexKeyStep3:
+        'Open the service account you just created from the table, choose "Create new key" → "Create authorized key" → "Create" → "Download file with keys", and paste the downloaded key below.',
+      yandexKeyStep4:
+        'Back on center.yandex.cloud, open "Billing" → "Access management" → "Assign roles". In "Who to grant access to" pick this service account, in "Roles" choose "billing.accounts.viewer", and finish with "Save" (this also enables balance and consumption history).',
+      yandexScope: 'Detected scope',
+      yandexScopeDesc:
+        'Resolved automatically from the key: the folders scanned for servers and the billing account used for balance and consumption.',
+      yandexScopeFolders: 'Folder',
+      yandexScopeBilling: 'Billing account',
+      yandexScopeNone: 'Nothing found - check the service account roles.',
+      yandexScopeRefresh: 'Refresh',
+      yandexScopeLoading: 'Resolving...',
+      yandexScopePending: 'Paste the authorized key to detect the scope.',
       refreshToken: 'Refresh token (OAuth2)',
       refreshTokenDescNetcup:
         'Use “Authorize via netcup” above, or paste an offline refresh token manually',
@@ -81,6 +107,11 @@ export const providers = {
       begetApiPassword: 'API password (optional, for balance)',
       begetApiPasswordDesc:
         'Separate "Beget API" password from the panel (Account → Security → Beget API) — enables balance sync',
+      doubleserversSetupStep1: 'Go to doubleservers.com and open the "Profile" section.',
+      doubleserversSetupStep2:
+        'Go to "BACKUP LOGIN VIA EMAIL". Enter the email and password, then click "Attach email". Enter the code sent to your email and click "Confirm". Enter the credentials in the fields below.',
+      doubleserversSetupStep3:
+        'Optional. Go to "Authenticator app" and click "Connect". Enter the key you receive, confirm it in an external authenticator, click "Confirm", then paste the same key into the field below.',
       porkbunApiKey: 'API key',
       porkbunApiKeyDesc: 'Porkbun → Account → API Access → create an API key',
       porkbunSecretKey: 'Secret API key',
@@ -97,13 +128,17 @@ export const providers = {
       vps4Token: 'Enter the 4VPS API token',
       netcupToken: 'Authorize via netcup or paste a refresh token',
       begetCreds: 'Enter the Beget login and password',
+      doubleserversCreds: 'Enter the Double Servers email and password',
       vultrToken: 'Enter the Vultr API key',
       porkbunCreds: 'Enter the Porkbun API key and secret key',
       linodeToken: 'Enter the Linode API token',
       aezaToken: 'Enter the Aeza API key',
+      hostkeyToken: 'Enter the Hostkey InvAPI key',
+      hostkeyTokenFormat: 'Hostkey key must look like d35f42c3a881b52d-ccbc5a508624d503',
       vdsinaToken: 'Enter the VDSina API token',
       cloudflareCreds: 'Enter the Cloudflare account ID and API token',
       stormwallToken: 'Enter the StormWall API key',
+      yandexKey: 'Paste the Yandex Cloud service account authorized key (JSON)',
     },
     netcup: {
       authorize: 'Authorize via netcup',
@@ -189,6 +224,14 @@ export const providers = {
       apiTokenDescLinode:
         'Linode → Account → API Tokens → создать Personal Access Token (доступ на чтение к Account и Linodes)',
       apiTokenDescAeza: 'Панель Aeza → API Keys → создать API-ключ',
+      apiBaseUrlDescAeza:
+        'Панель филиала: https://my.aeza.net (по умолчанию) или https://my.aeza.ru (российский филиал). Филиалы независимы — ключ должен быть из той же панели.',
+      apiTokenDescHostkey:
+        'Зайдите на invapi.hostkey.ru. Откройте "Пользователь" → "API ключи" → "Добавить ключ", введите любое имя, затем "Создать". Затем скопируйте ключ и завершите нажав "ОК".',
+      apiTokenDescTimeweb:
+        'Перейдите в "API и Terraform" → "Добавить токен", введите любое имя, затем "Выпустить".',
+      apiTokenDescHetzner:
+        'Зайдите на console.hetzner.com. Перейдите в "Проекты" → "Default" → "Безопасность" → "API-токены" → "Создать API-токен", введите любое имя, затем "Создать API-токен".',
       apiTokenDescVdsina:
         'Личный кабинет VDSina → список пользователей → постоянный API-токен (заголовок Authorization)',
       apiBaseUrlDescVdsina:
@@ -198,6 +241,25 @@ export const providers = {
       cloudflareAccountIdDesc: 'Account ID аккаунта Cloudflare (из URL дашборда или GET /accounts)',
       apiTokenDescStormwall:
         'Личный кабинет StormWall → API-ключ (передаётся в заголовке x-api-key)',
+      yandexKey: 'Авторизованный ключ (JSON)',
+      yandexKeySetup: 'Настройка:',
+      yandexKeyStep1:
+        'Зайдите на center.yandex.cloud и выберите "All services" → "Monitoring & Resources" → "Identity and Access Management" → "Service accounts".',
+      yandexKeyStep2:
+        'Нажмите "Create service account", введите любое имя, затем "Roles in the folder" → "Add role" → "viewer" и завершите через "Create".',
+      yandexKeyStep3:
+        'Откройте созданный сервисный аккаунт в таблице, выберите "Create new key" → "Create authorized key" → "Create" → "Download file with keys" и вставьте полученный ключ ниже.',
+      yandexKeyStep4:
+        'Вернитесь на center.yandex.cloud, выберите "Billing" → "Access management" → "Assign roles". В поле "Who to grant access to" выберите этот сервисный аккаунт, в поле "Roles" выберите "billing.accounts.viewer", и завершите через "Save" (это же включает баланс и историю расходов).',
+      yandexScope: 'Определённая область',
+      yandexScopeDesc:
+        'Определяется автоматически по ключу: каталоги, из которых берутся серверы, и платёжный аккаунт для баланса и расходов.',
+      yandexScopeFolders: 'Каталог',
+      yandexScopeBilling: 'Платёжный аккаунт',
+      yandexScopeNone: 'Ничего не найдено - проверьте роли сервисного аккаунта.',
+      yandexScopeRefresh: 'Обновить',
+      yandexScopeLoading: 'Определяем...',
+      yandexScopePending: 'Вставьте авторизованный ключ, чтобы определить область.',
       refreshToken: 'Refresh-токен (OAuth2)',
       refreshTokenDescNetcup:
         'Нажмите «Авторизоваться через netcup» выше или вставьте offline refresh-токен вручную',
@@ -208,6 +270,11 @@ export const providers = {
       begetApiPassword: 'API-пароль (необязательно, для баланса)',
       begetApiPasswordDesc:
         'Отдельный пароль «Beget API» из панели (Аккаунт → Безопасность → Beget API) — включает синк баланса',
+      doubleserversSetupStep1: 'Зайдите на doubleservers.com и откройте раздел "Profile".',
+      doubleserversSetupStep2:
+        'Перейдите к "BACKUP LOGIN VIA EMAIL". Введите email и пароль и нажмите "Attach email". Введите код, отправленный на почту, и нажмите "Confirm". Введите креды в поля ниже.',
+      doubleserversSetupStep3:
+        'Опционально. Перейдите к "Authenticator app" и нажмите "Connect". Введите полученный ключ и подтвердите его через внешний аутентификатор, нажмите "Confirm", а затем продублируйте тот же самый ключ в поле ниже.',
       porkbunApiKey: 'API-ключ',
       porkbunApiKeyDesc: 'Porkbun → Account → API Access → создать API-ключ',
       porkbunSecretKey: 'Секретный API-ключ',
@@ -224,13 +291,17 @@ export const providers = {
       vps4Token: 'Укажите API-токен 4VPS',
       netcupToken: 'Авторизуйтесь через netcup или вставьте refresh-токен',
       begetCreds: 'Укажите логин и пароль Beget',
+      doubleserversCreds: 'Укажите email и пароль Double Servers',
       vultrToken: 'Укажите API-ключ Vultr',
       porkbunCreds: 'Укажите API-ключ и секретный ключ Porkbun',
       linodeToken: 'Укажите API-токен Linode',
       aezaToken: 'Укажите API-ключ Aeza',
+      hostkeyToken: 'Укажите API-ключ Hostkey InvAPI',
+      hostkeyTokenFormat: 'Ключ Hostkey должен быть вида d35f42c3a881b52d-ccbc5a508624d503',
       vdsinaToken: 'Укажите API-токен VDSina',
       cloudflareCreds: 'Укажите account ID и API-токен Cloudflare',
       stormwallToken: 'Укажите API-ключ StormWall',
+      yandexKey: 'Вставьте авторизованный ключ сервисного аккаунта Yandex Cloud (JSON)',
     },
     netcup: {
       authorize: 'Авторизоваться через netcup',

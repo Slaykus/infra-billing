@@ -1,7 +1,8 @@
 import type { Service } from '@infra/shared';
-import { IconCalendarDollar, IconMapPin, IconStack2 } from '@tabler/icons-react';
+import { IconCalendarDollar, IconStack2 } from '@tabler/icons-react';
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { CountryCombobox } from '@/components/CountryCombobox';
 import { DateField } from '@/components/DateField';
 import { FormSection } from '@/components/FormSection';
 import { Input } from '@/components/ui/input';
@@ -13,11 +14,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { trimMoney } from '@/utils/format';
+import { normalizeMoney, trimMoney } from '@/utils/format';
+import { OverriddenMark } from './OverriddenMark';
 import type { SForm } from './serviceForm';
 
-// SelectItem forbids value="" — sentinel for the cleared country pick.
-const NO_COUNTRY = 'none';
+function metaString(meta: Record<string, unknown> | undefined, key: string): string | undefined {
+  const v = meta?.[key];
+  return typeof v === 'string' ? v : undefined;
+}
+
+/** Pencil when the value leaves the provider baseline (or the loaded value before first sync). */
+function showOverrideMark(
+  current: string,
+  loaded: string,
+  savedOverridden: boolean,
+  synced: string | undefined,
+): boolean {
+  if (synced != null) return current !== synced;
+  if (savedOverridden) return true;
+  return current !== loaded;
+}
 
 interface ServiceFormFieldsProps {
   form: UseFormReturn<SForm>;
@@ -46,8 +62,36 @@ export function ServiceFormFields({
     register,
     control,
     setValue,
-    formState: { errors },
+    watch,
+    formState: { errors, defaultValues },
   } = form;
+  const name = watch('name');
+  const type = watch('type');
+  const cost = watch('cost');
+  const syncedName = metaString(editing?.meta, 'syncedName');
+  const syncedType = metaString(editing?.meta, 'syncedType');
+  const syncedCost = metaString(editing?.meta, 'syncedCost');
+  const showNameMark = Boolean(
+    editing &&
+      showOverrideMark(name, defaultValues?.name ?? '', editing.nameOverridden, syncedName),
+  );
+  const showTypeMark = Boolean(
+    editing &&
+      showOverrideMark(type, defaultValues?.type ?? '', editing.typeOverridden, syncedType),
+  );
+  const loadedCost = trimMoney(String(defaultValues?.cost ?? ''));
+  const baselineCost = syncedCost != null ? trimMoney(syncedCost) : loadedCost;
+  // Compare in canonical form so "10.5" doesn't read as an edit of a "10.50" baseline.
+  const showCostMark = Boolean(
+    editing &&
+      showOverrideMark(
+        normalizeMoney(cost),
+        normalizeMoney(loadedCost),
+        editing.costOverridden,
+        syncedCost != null ? normalizeMoney(syncedCost) : undefined,
+      ),
+  );
+  const restoreOpts = { shouldDirty: true, shouldValidate: true } as const;
 
   return (
     <>
@@ -109,9 +153,19 @@ export function ServiceFormFields({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="service-name">
-            {t('services.fieldName')} <span className="text-destructive">*</span>
-          </Label>
+          <div className="flex h-4 items-center gap-1">
+            <Label htmlFor="service-name">
+              {t('services.fieldName')} <span className="text-destructive">*</span>
+            </Label>
+            {showNameMark && (
+              <OverriddenMark
+                label={t('services.detail.nameOverridden')}
+                onRestore={() =>
+                  setValue('name', syncedName ?? defaultValues?.name ?? '', restoreOpts)
+                }
+              />
+            )}
+          </div>
           <Input
             id="service-name"
             aria-invalid={!!errors.name}
@@ -123,8 +177,18 @@ export function ServiceFormFields({
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="service-type">{t('services.fieldType')}</Label>
+          <div className="min-w-0 space-y-2">
+            <div className="flex h-4 items-center gap-1">
+              <Label htmlFor="service-type">{t('services.fieldType')}</Label>
+              {showTypeMark && (
+                <OverriddenMark
+                  label={t('services.detail.typeOverridden')}
+                  onRestore={() =>
+                    setValue('type', syncedType ?? defaultValues?.type ?? '', restoreOpts)
+                  }
+                />
+              )}
+            </div>
             <Controller
               control={control}
               name="type"
@@ -144,8 +208,10 @@ export function ServiceFormFields({
               )}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="service-period">{t('services.fieldPeriod')}</Label>
+          <div className="min-w-0 space-y-2">
+            <div className="flex h-4 items-center gap-1">
+              <Label htmlFor="service-period">{t('services.fieldPeriod')}</Label>
+            </div>
             <Controller
               control={control}
               name="period"
@@ -170,10 +236,18 @@ export function ServiceFormFields({
 
       <FormSection icon={IconCalendarDollar} title={t('services.section.billing')}>
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="service-cost">
-              {t('services.fieldCost')} <span className="text-destructive">*</span>
-            </Label>
+          <div className="min-w-0 space-y-2">
+            <div className="flex h-4 items-center gap-1">
+              <Label htmlFor="service-cost">
+                {t('services.fieldCost')} <span className="text-destructive">*</span>
+              </Label>
+              {showCostMark && (
+                <OverriddenMark
+                  label={t('services.detail.costOverridden')}
+                  onRestore={() => setValue('cost', baselineCost, restoreOpts)}
+                />
+              )}
+            </div>
             <Input
               id="service-cost"
               aria-invalid={!!errors.cost}
@@ -185,8 +259,10 @@ export function ServiceFormFields({
             />
             {errors.cost && <p className="text-xs text-destructive">{errors.cost.message}</p>}
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="service-currency">{t('services.fieldCurrency')}</Label>
+          <div className="min-w-0 space-y-2">
+            <div className="flex h-4 items-center gap-1">
+              <Label htmlFor="service-currency">{t('services.fieldCurrency')}</Label>
+            </div>
             <Controller
               control={control}
               name="currency"
@@ -209,34 +285,28 @@ export function ServiceFormFields({
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="service-country">{t('services.fieldCountry')}</Label>
+          <div className="min-w-0 space-y-2">
+            <div className="flex h-4 items-center gap-1">
+              <Label htmlFor="service-country">{t('services.fieldCountry')}</Label>
+            </div>
             <Controller
               control={control}
               name="countryCode"
               render={({ field }) => (
-                <Select
-                  value={field.value || NO_COUNTRY}
-                  onValueChange={(v) => field.onChange(v === NO_COUNTRY ? '' : v)}
-                >
-                  <SelectTrigger id="service-country" className="w-full">
-                    <IconMapPin className="size-4 shrink-0 opacity-60" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NO_COUNTRY}>{t('services.countryPlaceholder')}</SelectItem>
-                    {countryOptions.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CountryCombobox
+                  id="service-country"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={countryOptions}
+                  placeholder={t('services.countryPlaceholder')}
+                />
               )}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="service-next-billing">{t('services.fieldNextBilling')}</Label>
+          <div className="min-w-0 space-y-2">
+            <div className="flex h-4 items-center gap-1">
+              <Label htmlFor="service-next-billing">{t('services.fieldNextBilling')}</Label>
+            </div>
             <Controller
               control={control}
               name="nextBillingAt"

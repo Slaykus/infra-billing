@@ -1,11 +1,27 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@generated/prisma/client';
-import { Provider as ProviderDto, Service as ServiceDto } from '@infra/shared';
+import {
+  Provider as ProviderDto,
+  ProviderCredentialsReveal,
+  Service as ServiceDto,
+  YandexDiscoverResult,
+} from '@infra/shared';
 import { ProvidersRepository } from '@repositories/providers/providers.repository';
+import {
+  AEZA_BASE_URLS,
+  AezaCredentials,
+  normalizeAezaBaseUrl,
+  parseAezaCredentials,
+} from '@connectors/aeza/aeza.types';
 import { VDSINA_BASE_URLS } from '@connectors/vdsina/vdsina.types';
+import { YandexConnector } from '../connectors/yandex/yandex.connector';
+import type { YandexCredentials } from '../connectors/yandex/yandex.types';
 import { CryptoService } from '../crypto/crypto.service';
 import { mapProvider, mapService } from '@common/mappers';
-import { CreateProviderDto, UpdateProviderDto } from './dto/provider.dto';
+import { CreateProviderDto, UpdateProviderDto, YandexDiscoverDto } from './dto/provider.dto';
+
+// Cap the discovery call so a hanging Yandex API request can't wedge the request handler.
+const DISCOVER_TIMEOUT_MS = 20_000;
 
 @Injectable()
 export class ProvidersService {
@@ -26,42 +42,178 @@ export class ProvidersService {
     return { ...dto, services: p.services.map(mapService) };
   }
 
-  /** Expose non-secret credential fields (baseUrl/username/accountId) for the edit form. */
+  /** Expose non-secret hints + secret-presence flags for the edit form (never plaintext). */
   private withCredentialHints(dto: ProviderDto, kind: string, enc: Uint8Array | null): ProviderDto {
+    return {
+      ...dto,
+      ...this.nonSecretHints(kind, enc),
+      ...this.secretPresence(kind, enc),
+    };
+  }
+
+  private nonSecretHints(kind: string, enc: Uint8Array | null): Partial<ProviderDto> {
     if (kind === 'selectel') {
       const c = this.decodeCredentials(enc);
-      // Never expose the password.
       return {
-        ...dto,
         accountId: c.accountId ?? null,
         username: c.username ?? null,
         projectName: c.projectName ?? null,
       };
     }
     if (kind === '4vps') {
-      // Never expose the token; panelId is a non-secret hint.
       const c = this.decodeCredentials(enc);
-      return { ...dto, panelId: c.panelId ?? null };
+      return { panelId: c.panelId ?? null };
     }
     if (kind === 'vdsina') {
-      // Never expose the token; the branch base URL is a non-secret hint.
       const c = this.decodeCredentials(enc);
-      return { ...dto, baseUrl: c.baseUrl ?? null };
+      return { baseUrl: c.baseUrl ?? null };
     }
-    if (kind === 'beget') {
-      // Only the login is a non-secret hint; never expose password/totpSecret/apiPassword.
+    if (kind === 'aeza') {
+      return { baseUrl: this.decodeAezaCredentials(enc).baseUrl ?? null };
+    }
+    if (kind === 'beget' || kind === 'doubleservers') {
       const c = this.decodeCredentials(enc);
-      return { ...dto, username: c.username ?? null };
+      return { username: c.username ?? null };
     }
     if (kind === 'cloudflare') {
-      // accountId is a non-secret hint; never expose the apiToken.
       const c = this.decodeCredentials(enc);
-      return { ...dto, accountId: c.accountId ?? null };
+      return { accountId: c.accountId ?? null };
     }
-    if (kind !== 'hostbill' && kind !== 'billmgr') return dto;
+    if (kind === 'hostbill' || kind === 'billmgr') {
+      const c = this.decodeCredentials(enc);
+      return { baseUrl: c.baseUrl ?? null, username: c.username ?? null };
+    }
+    return {};
+  }
+
+  private secretPresence(kind: string, enc: Uint8Array | null): Partial<ProviderDto> {
+    if (kind === 'manual' || !enc) {
+      return {
+        hasToken: false,
+        hasPassword: false,
+        hasTotpSecret: false,
+        hasApiPassword: false,
+        hasSecretKey: false,
+      };
+    }
+    if (
+      kind === 'timeweb' ||
+      kind === 'hetzner' ||
+      kind === 'hostkey' ||
+      kind === 'netcup' ||
+      kind === 'netlen' ||
+      kind === 'vultr' ||
+      kind === 'linode' ||
+      kind === 'stormwall'
+    ) {
+      return { hasToken: true };
+    }
+    if (kind === 'aeza') return { hasToken: Boolean(this.decodeAezaCredentials(enc).token) };
     const c = this.decodeCredentials(enc);
-    // Never expose password/totpSecret.
-    return { ...dto, baseUrl: c.baseUrl ?? null, username: c.username ?? null };
+    if (kind === '4vps' || kind === 'vdsina') return { hasToken: Boolean(c.token) };
+    if (kind === 'cloudflare') return { hasToken: Boolean(c.apiToken) };
+    if (kind === 'porkbun') {
+      return { hasToken: Boolean(c.apiKey), hasSecretKey: Boolean(c.secretApiKey) };
+    }
+    if (kind === 'yandex') {
+      return { hasToken: Boolean(c.keyId && c.serviceAccountId && c.privateKey) };
+    }
+    if (kind === 'selectel' || kind === 'hostbill') {
+      return { hasPassword: Boolean(c.password) };
+    }
+    if (kind === 'billmgr') {
+      return { hasPassword: Boolean(c.password), hasTotpSecret: Boolean(c.totpSecret) };
+    }
+    if (kind === 'beget') {
+      return {
+        hasPassword: Boolean(c.password),
+        hasTotpSecret: Boolean(c.totpSecret),
+        hasApiPassword: Boolean(c.apiPassword),
+      };
+    }
+    if (kind === 'doubleservers') {
+      return { hasPassword: Boolean(c.password), hasTotpSecret: Boolean(c.totpSecret) };
+    }
+    return { hasToken: true };
+  }
+
+  /** Decrypt stored secrets for an explicit reveal (edit form eye toggle). */
+  async revealCredentials(uuid: string): Promise<ProviderCredentialsReveal> {
+    const existing = await this.providers.findCredentials(uuid);
+    if (!existing) throw new NotFoundException('Provider not found');
+    const { kind, credentialsEnc: enc } = existing;
+    if (!enc || kind === 'manual') return {};
+
+    if (
+      kind === 'timeweb' ||
+      kind === 'hetzner' ||
+      kind === 'hostkey' ||
+      kind === 'netcup' ||
+      kind === 'netlen' ||
+      kind === 'vultr' ||
+      kind === 'linode' ||
+      kind === 'stormwall'
+    ) {
+      const token = this.decryptRaw(enc);
+      return token ? { token } : {};
+    }
+
+    if (kind === 'aeza') {
+      const token = this.decodeAezaCredentials(enc).token;
+      return token ? { token } : {};
+    }
+
+    const c = this.decodeCredentials(enc);
+    if (kind === '4vps' || kind === 'vdsina') {
+      return c.token ? { token: c.token } : {};
+    }
+    if (kind === 'cloudflare') {
+      return c.apiToken ? { token: c.apiToken } : {};
+    }
+    if (kind === 'porkbun') {
+      const out: ProviderCredentialsReveal = {};
+      if (c.apiKey) out.token = c.apiKey;
+      if (c.secretApiKey) out.secretKey = c.secretApiKey;
+      return out;
+    }
+    if (kind === 'yandex') {
+      if (!c.keyId || !c.serviceAccountId || !c.privateKey) return {};
+      return {
+        token: JSON.stringify(
+          {
+            id: c.keyId,
+            service_account_id: c.serviceAccountId,
+            private_key: c.privateKey,
+          },
+          null,
+          2,
+        ),
+      };
+    }
+    if (kind === 'selectel' || kind === 'hostbill') {
+      return c.password ? { password: c.password } : {};
+    }
+    if (kind === 'billmgr') {
+      const out: ProviderCredentialsReveal = {};
+      if (c.password) out.password = c.password;
+      if (c.totpSecret) out.totpSecret = c.totpSecret;
+      return out;
+    }
+    if (kind === 'beget') {
+      const out: ProviderCredentialsReveal = {};
+      if (c.password) out.password = c.password;
+      if (c.totpSecret) out.totpSecret = c.totpSecret;
+      if (c.apiPassword) out.apiPassword = c.apiPassword;
+      return out;
+    }
+    if (kind === 'doubleservers') {
+      const out: ProviderCredentialsReveal = {};
+      if (c.password) out.password = c.password;
+      if (c.totpSecret) out.totpSecret = c.totpSecret;
+      return out;
+    }
+    const token = this.decryptRaw(enc);
+    return token ? { token } : {};
   }
 
   async create(dto: CreateProviderDto): Promise<ProviderDto> {
@@ -69,6 +221,8 @@ export class ProvidersService {
       name: dto.name,
       kind: dto.kind,
       loginUrl: dto.loginUrl ?? null,
+      iconName: dto.iconName ?? null,
+      iconBg: dto.iconBg ?? null,
       isPostpaid: dto.isPostpaid ?? false,
       credentialsEnc: this.buildCredentials(dto.kind, dto),
     });
@@ -81,6 +235,8 @@ export class ProvidersService {
     const data: Prisma.ProviderUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.loginUrl !== undefined) data.loginUrl = dto.loginUrl;
+    if (dto.iconName !== undefined) data.iconName = dto.iconName;
+    if (dto.iconBg !== undefined) data.iconBg = dto.iconBg;
     if (dto.isPostpaid !== undefined) data.isPostpaid = dto.isPostpaid;
     // Merge onto existing credentials so a partial edit works, e.g. adding only a TOTP
     // secret to an existing BILLmanager provider without re-entering the password.
@@ -143,6 +299,25 @@ export class ProvidersService {
       if (baseUrl) creds.baseUrl = baseUrl;
       return this.crypto.encrypt(JSON.stringify(creds));
     }
+    if (kind === 'aeza') {
+      // JSON { token, baseUrl? }; merge so a branch-only edit keeps the key. The .net and the
+      // Russian .ru branches are separate accounts on an identical API — the base URL picks one,
+      // and the allowlist keeps the key from reaching a foreign host.
+      if (!dto.token && !dto.baseUrl) return null;
+      const base = this.decodeAezaCredentials(existingEnc);
+      const token = dto.token ?? base.token;
+      if (!token) throw new BadRequestException('Provide the Aeza API key');
+      const creds: AezaCredentials = { token };
+      const supplied = dto.baseUrl ?? base.baseUrl;
+      if (supplied) {
+        const baseUrl = normalizeAezaBaseUrl(supplied);
+        if (!baseUrl) {
+          throw new BadRequestException(`Aeza base URL must be ${AEZA_BASE_URLS.join(' or ')}`);
+        }
+        creds.baseUrl = baseUrl;
+      }
+      return this.crypto.encrypt(JSON.stringify(creds));
+    }
     if (kind === 'selectel') {
       // Keystone service user: JSON { accountId, username, password, projectName? }; merge edits.
       const supplied = dto.accountId || dto.username || dto.password || dto.projectName;
@@ -195,6 +370,21 @@ export class ProvidersService {
       if (apiPassword) creds.apiPassword = apiPassword;
       return this.crypto.encrypt(JSON.stringify(creds));
     }
+    if (kind === 'doubleservers') {
+      // JSON { username (email), password, totpSecret? }; merge so a partial edit works.
+      const supplied = dto.username || dto.password || dto.totpSecret;
+      if (!supplied) return null;
+      const base = this.decodeCredentials(existingEnc);
+      const username = dto.username ?? base.username;
+      const password = dto.password ?? base.password;
+      if (!username || !password) {
+        throw new BadRequestException('Provide the Double Servers email and password together');
+      }
+      const creds: Record<string, string> = { username, password };
+      const totpSecret = dto.totpSecret ?? base.totpSecret;
+      if (totpSecret) creds.totpSecret = totpSecret;
+      return this.crypto.encrypt(JSON.stringify(creds));
+    }
     if (kind === 'cloudflare') {
       // JSON { accountId, apiToken }. `token` carries the API token. Merge so a partial edit works.
       if (!dto.accountId && !dto.token) return null;
@@ -217,8 +407,91 @@ export class ProvidersService {
       }
       return this.crypto.encrypt(JSON.stringify({ apiKey, secretApiKey }));
     }
+    if (kind === 'yandex') {
+      // `token` carries the service-account authorized key (JSON); parse it into { keyId,
+      // serviceAccountId, privateKey }. Scope (folders, billing account) is auto-resolved, never
+      // stored. Nothing to merge — an edit without a new key leaves the stored one intact.
+      if (!dto.token) return null;
+      const key = this.parseYandexKey(dto.token);
+      if (!key.keyId || !key.serviceAccountId || !key.privateKey) {
+        throw new BadRequestException(
+          'Provide the Yandex Cloud service account authorized key (JSON)',
+        );
+      }
+      return this.crypto.encrypt(JSON.stringify(key));
+    }
     if (kind !== 'manual' && dto.token) return this.crypto.encrypt(dto.token);
     return null;
+  }
+
+  /**
+   * Resolve the Yandex scope (folders scanned for servers + billing account) for the form badges,
+   * using either the just-entered authorized key (create flow) or the stored credentials of an
+   * existing provider (edit flow).
+   */
+  async discoverYandex(dto: YandexDiscoverDto): Promise<YandexDiscoverResult> {
+    const creds = await this.yandexCredsFor(dto);
+    const connector = new YandexConnector(creds);
+    try {
+      return await connector.discover(AbortSignal.timeout(DISCOVER_TIMEOUT_MS));
+    } catch (e) {
+      throw new BadRequestException(
+        e instanceof Error ? e.message : 'Yandex Cloud discovery failed',
+      );
+    }
+  }
+
+  /** Resolve the auth part of the Yandex credentials from a raw key or a stored provider. */
+  private async yandexCredsFor(dto: YandexDiscoverDto): Promise<YandexCredentials> {
+    if (dto.token) {
+      const key = this.parseYandexKey(dto.token);
+      if (!key.keyId || !key.serviceAccountId || !key.privateKey) {
+        throw new BadRequestException(
+          'Provide the Yandex Cloud service account authorized key (JSON)',
+        );
+      }
+      return {
+        keyId: key.keyId,
+        serviceAccountId: key.serviceAccountId,
+        privateKey: key.privateKey,
+      };
+    }
+    if (dto.providerUuid) {
+      const existing = await this.providers.findCredentials(dto.providerUuid);
+      if (existing?.kind !== 'yandex') {
+        throw new NotFoundException('Yandex provider not found');
+      }
+      const c = this.decodeCredentials(existing.credentialsEnc);
+      if (!c.keyId || !c.serviceAccountId || !c.privateKey) {
+        throw new BadRequestException('Stored Yandex credentials are incomplete');
+      }
+      return {
+        keyId: c.keyId,
+        serviceAccountId: c.serviceAccountId,
+        privateKey: c.privateKey,
+      };
+    }
+    throw new BadRequestException('Provide the authorized key or an existing provider');
+  }
+
+  /** Parse a Yandex Cloud authorized-key JSON into the fields we sign the JWT with. */
+  private parseYandexKey(raw: string): {
+    keyId?: string;
+    serviceAccountId?: string;
+    privateKey?: string;
+  } {
+    let obj: { id?: string; service_account_id?: string; private_key?: string };
+    try {
+      obj = JSON.parse(raw);
+    } catch {
+      throw new BadRequestException('Yandex Cloud authorized key must be the JSON key file');
+    }
+    if (!obj.id || !obj.service_account_id || !obj.private_key) {
+      throw new BadRequestException(
+        'Yandex Cloud authorized key is missing id, service_account_id or private_key',
+      );
+    }
+    return { keyId: obj.id, serviceAccountId: obj.service_account_id, privateKey: obj.private_key };
   }
 
   /** Decrypt the stored JSON credentials (hostbill/billmgr), or {} if none/unparseable. */
@@ -228,6 +501,25 @@ export class ProvidersService {
       return JSON.parse(this.crypto.decrypt(enc)) as Record<string, string>;
     } catch {
       return {};
+    }
+  }
+
+  /**
+   * Aeza credentials: JSON { token, baseUrl? }, or the bare API key for providers saved before the
+   * branch field existed — hence its own decoder instead of `decodeCredentials`.
+   */
+  private decodeAezaCredentials(enc?: Uint8Array | null): Partial<AezaCredentials> {
+    if (!enc) return {};
+    const raw = this.decryptRaw(enc);
+    return raw ? parseAezaCredentials(raw) : {};
+  }
+
+  private decryptRaw(enc: Uint8Array): string | null {
+    try {
+      const raw = this.crypto.decrypt(enc);
+      return raw || null;
+    } catch {
+      return null;
     }
   }
 

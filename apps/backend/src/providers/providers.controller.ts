@@ -10,6 +10,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { API, API_SUB, CONTROLLERS_INFO, ID_PARAM } from '@infra/shared';
+import { SessionOnly } from '../auth/session-only.decorator';
 import { NetcupDeviceFlowService } from '../connectors/netcup/netcup.device-flow';
 import { ProvidersService } from './providers.service';
 import {
@@ -17,9 +18,12 @@ import {
   NetcupDevicePollDto,
   NetcupDevicePollResultDto,
   NetcupDeviceStartDto,
+  ProviderCredentialsRevealDto,
   ProviderDto,
   ProviderWithServicesDto,
   UpdateProviderDto,
+  YandexDiscoverDto,
+  YandexDiscoverResultDto,
 } from './dto/provider.dto';
 import {
   ApiBearerAuth,
@@ -68,6 +72,25 @@ export class ProvidersController {
   @ApiOkResponse({ type: NetcupDevicePollResultDto })
   netcupDevicePoll(@Body() dto: NetcupDevicePollDto) {
     return this.netcupDevice.poll(dto.deviceCode);
+  }
+
+  // Yandex folder / billing-account discovery for the form dropdowns. Static path, before `:uuid`.
+  @Post(API_SUB.PROVIDER_YANDEX_DISCOVER)
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Discover Yandex folders and billing accounts' })
+  @ApiOkResponse({ type: YandexDiscoverResultDto })
+  yandexDiscover(@Body() dto: YandexDiscoverDto) {
+    return this.providers.discoverYandex(dto);
+  }
+
+  // Returns decrypted secrets, so it stays off-limits to API tokens: those are unscoped and live in
+  // scripts, and a leaked one must not be able to drain every hoster password and TOTP seed.
+  @SessionOnly()
+  @Get(API_SUB.PROVIDER_CREDENTIALS_REVEAL)
+  @ApiOperation({ summary: 'Reveal stored provider credentials (explicit reveal, session only)' })
+  @ApiOkResponse({ type: ProviderCredentialsRevealDto })
+  revealCredentials(@Param(ID_PARAM, ParseUUIDPipe) uuid: string) {
+    return this.providers.revealCredentials(uuid);
   }
 
   @Get(API_SUB.BY_ID)
