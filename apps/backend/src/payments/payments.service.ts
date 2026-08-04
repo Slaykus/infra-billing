@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PaginatedPayments, Payment as PaymentDto } from '@infra/shared';
+import { PaginatedPayments, Payment as PaymentDto, type Period } from '@infra/shared';
 import { PaymentsRepository } from '@repositories/payments/payments.repository';
 import { ProvidersRepository } from '@repositories/providers/providers.repository';
 import { ServicesRepository } from '@repositories/services/services.repository';
+import { advanceByPeriod } from '@common/billing-period';
 import { mapPayment } from '@common/mappers';
 import { CreatePaymentDto, PaymentQueryDto } from './dto/payment.dto';
 
@@ -33,6 +34,7 @@ export class PaymentsService {
       paymentDate: new Date(dto.paymentDate),
       type: dto.type ?? 'topup',
     });
+    if (dto.serviceUuid) await this.rollBillingDate(dto.serviceUuid);
     return mapPayment(p);
   }
 
@@ -47,5 +49,17 @@ export class PaymentsService {
 
   private async ensureService(uuid: string): Promise<void> {
     if (!(await this.services.exists(uuid))) throw new NotFoundException('Service not found');
+  }
+
+  /**
+   * Manual (non-synced) services with a due date: recording a payment rolls the next
+   * billing date forward by one period, so a service you've paid doesn't linger as
+   * "overdue". Managed services are owned by their connector sync and left untouched.
+   */
+  private async rollBillingDate(serviceUuid: string): Promise<void> {
+    const svc = await this.services.findByUuid(serviceUuid);
+    if (!svc || svc.isManaged || !svc.nextBillingAt) return;
+    const next = advanceByPeriod(svc.nextBillingAt, svc.period as Period);
+    if (next) await this.services.update(serviceUuid, { nextBillingAt: next });
   }
 }
