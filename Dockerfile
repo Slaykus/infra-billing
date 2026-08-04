@@ -7,6 +7,18 @@ COPY packages/shared/package.json packages/shared/
 COPY apps/backend/package.json apps/backend/
 COPY apps/frontend/package.json apps/frontend/
 RUN npm ci
+# npm optional-deps bug (npm/cli#4828): platform-specific native binaries (Rollup,
+# Tailwind v4 oxide, lightningcss, ...) are not always linked on alpine/musl, which
+# breaks the frontend build with "Cannot find native binding". Reinstall every
+# *-linux-x64-musl package pinned to its lockfile version, without touching the lock.
+RUN node -e "const l=require('./package-lock.json');const s=new Set();for(const k of Object.keys(l.packages||{})){const m=k.match(/node_modules\/((?:@[^/]+\/)?[^/]+-linux-x64-musl)$/);if(m)s.add(m[1]+'@'+l.packages[k].version)}process.stdout.write([...s].join(' '))" > /tmp/musl.txt \
+    && for pkg in $(cat /tmp/musl.txt); do \
+         dir="node_modules/${pkg%@*}"; mkdir -p "$dir"; \
+         (cd /tmp && npm pack "$pkg" >/dev/null 2>&1); \
+         f="$(ls -t /tmp/*.tgz | head -n1)"; \
+         tar -xzf "$f" -C "$dir" --strip-components=1 && rm -f "$f" && echo "linked $pkg"; \
+       done \
+    && rm -f /tmp/musl.txt
 
 COPY . .
 RUN npm run prisma:generate -w @infra/backend
