@@ -5,8 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTheme } from '@/lib/theme';
 
-/** Light/dark theme toggle; the choice survives reloads (localStorage). */
-export function ThemeToggle() {
+/**
+ * Light/dark theme toggle; the choice survives reloads (localStorage). `withLabel` spells out the
+ * theme it switches to (the sidebar row); without it this is the bare icon (login page).
+ */
+export function ThemeToggle({ withLabel = false }: { withLabel?: boolean }) {
   const { t } = useTranslation();
   const { resolved, setScheme } = useTheme();
   const isDark = resolved === 'dark';
@@ -24,15 +27,31 @@ export function ThemeToggle() {
     }
   };
 
+  const icon = isDark ? (
+    <IconSun stroke={1.5} className="size-4" />
+  ) : (
+    <IconMoon stroke={1.5} className="size-4" />
+  );
+
+  if (withLabel) {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={toggle}
+        className="h-8 gap-2.5 px-2.5 text-[13px] font-normal text-ink-2 hover:bg-background hover:text-foreground [&_svg]:text-ink-3"
+      >
+        {icon}
+        {label}
+      </Button>
+    );
+  }
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button variant="ghost" size="icon-sm" aria-label={label} onClick={toggle}>
-          {isDark ? (
-            <IconSun stroke={1.5} className="size-4" />
-          ) : (
-            <IconMoon stroke={1.5} className="size-4" />
-          )}
+          {icon}
         </Button>
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>

@@ -4,6 +4,9 @@ import { Link, NavLink as RouterNavLink, useLocation } from 'react-router-dom';
 import { useSummary } from '@/api/analytics';
 import { useLogout, useMe } from '@/api/auth';
 import { useProviders, useSyncActivity } from '@/api/providers';
+import { BuildInfo } from '@/components/BuildInfo';
+import { DocsLink } from '@/components/DocsLink';
+import { GithubStars } from '@/components/GithubStars';
 import { InkGlyph } from '@/components/ink/InkGlyph';
 import { InkMeter } from '@/components/ink/InkMeter';
 import { Button } from '@/components/ui/button';
@@ -152,6 +155,18 @@ export function PaidMeter() {
   );
 }
 
+/** Outbound links at the foot of the sidebar: API docs (when enabled), the repo, the build. */
+export function FooterLinks() {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <DocsLink />
+      <GithubStars />
+      <BuildInfo />
+    </div>
+  );
+}
+
+/** Who is signed in, at the top of the sidebar: a soft card with the sign-out next to the name. */
 export function UserBlock() {
   const { t } = useTranslation();
   const me = useMe();
@@ -159,18 +174,16 @@ export function UserBlock() {
   const name = me.data?.username ?? '—';
 
   return (
-    <div className="flex items-center justify-between gap-2 px-1">
-      <div className="flex min-w-0 items-center gap-3">
-        <span
-          aria-hidden
-          className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border text-[11px] font-medium"
-        >
-          {name.slice(0, 2).toUpperCase()}
-        </span>
-        <div className="min-w-0 leading-tight">
-          <p className="truncate text-sm">{name}</p>
-          <p className="truncate text-xs text-ink-2">@{t('app.singleUser')}</p>
-        </div>
+    <div className="flex items-center gap-3 rounded-lg bg-background p-2.5">
+      <span
+        aria-hidden
+        className="flex size-8 shrink-0 items-center justify-center rounded-md bg-card text-[11px] font-medium text-ink-2"
+      >
+        {name.slice(0, 2).toUpperCase()}
+      </span>
+      <div className="min-w-0 flex-1 leading-tight">
+        <p className="truncate text-sm font-medium">{name}</p>
+        <p className="truncate text-xs text-ink-2">@{t('app.singleUser')}</p>
       </div>
       <Tooltip>
         <TooltipTrigger asChild>
@@ -180,6 +193,7 @@ export function UserBlock() {
             aria-label={t('app.logout')}
             disabled={logout.isPending}
             onClick={() => logout.mutate()}
+            className="shrink-0 text-ink-2 hover:bg-card hover:text-foreground"
           >
             <IconLogout stroke={1.5} className="size-4" />
           </Button>

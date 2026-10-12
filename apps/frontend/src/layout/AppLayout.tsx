@@ -3,10 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Outlet } from 'react-router-dom';
 import { BrandWordmark } from '@/components/BrandWordmark';
-import { BuildInfo } from '@/components/BuildInfo';
 import { CommandPalette } from '@/components/CommandPalette';
-import { DocsLink } from '@/components/DocsLink';
-import { GithubStars } from '@/components/GithubStars';
 import { Kbd } from '@/components/ink/Kbd';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { RwpPromo } from '@/components/RwpPromo';
@@ -22,7 +19,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { PageChromeProvider, usePageChrome } from './pageChrome';
-import { NavGroups, PaidMeter, SyncStatusGroup, UserBlock } from './SidebarParts';
+import { FooterLinks, NavGroups, PaidMeter, SyncStatusGroup, UserBlock } from './SidebarParts';
 
 const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.userAgent);
 
@@ -101,11 +98,10 @@ export function AppLayout() {
       <PageChromeProvider>
         {/* The white sidebar sits on the stone canvas by tone alone, so no dividing line. */}
         <Sidebar collapsible="offcanvas" className="group-data-[side=left]:border-r-0">
-          <SidebarHeader className="gap-4 px-5 pt-5 pb-3">
-            <div className="flex items-center justify-between gap-2">
-              <BrandWordmark />
-              <BuildInfo />
-            </div>
+          {/* Who is signed in sits at the top, under the brand; links and preferences go to the foot. */}
+          <SidebarHeader className="gap-3 px-4 pt-5 pb-3">
+            <BrandWordmark className="px-1" />
+            <UserBlock />
             <SearchField onOpen={() => setPaletteOpen(true)} />
           </SidebarHeader>
           <SidebarContent className="gap-1 px-3">
@@ -115,14 +111,13 @@ export function AppLayout() {
           <SidebarFooter className="gap-3 px-4 pt-3 pb-4">
             <PaidMeter />
             <RwpPromo />
-            <div className="flex items-center gap-1 border-t border-hairline pt-4">
-              <GithubStars />
-              <div className="flex-1" />
-              <DocsLink />
-              <ThemeToggle />
+            <div className="border-t border-hairline pt-3">
+              <FooterLinks />
+            </div>
+            <div className="flex items-center justify-between gap-1 border-t border-hairline pt-3">
+              <ThemeToggle withLabel />
               <LanguageSwitcher />
             </div>
-            <UserBlock />
           </SidebarFooter>
         </Sidebar>
 

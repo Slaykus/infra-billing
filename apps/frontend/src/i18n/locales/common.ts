@@ -38,6 +38,7 @@ export const common = {
       singleUser: 'root',
       logout: 'Log out',
       starOnGithub: 'Star on GitHub',
+      github: 'GitHub',
       apiDocs: 'API docs',
       rwp: {
         title: 'RWP Shop',
@@ -258,6 +259,7 @@ export const common = {
       singleUser: 'root',
       logout: 'Выйти',
       starOnGithub: 'Звезда на GitHub',
+      github: 'GitHub',
       apiDocs: 'Документация API',
       rwp: {
         title: 'RWP Shop',
