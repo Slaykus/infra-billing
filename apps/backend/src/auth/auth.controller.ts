@@ -4,9 +4,11 @@ import {
   Delete,
   Get,
   HttpCode,
+  Logger,
   Param,
   Patch,
   Post,
+  Query,
   Req,
   Res,
   UnauthorizedException,
@@ -21,17 +23,25 @@ import {
   type Me,
   type Passkey,
   type SetupStatus,
+  type TelegramStartResponse,
 } from '@infra/shared';
 import { Request, Response } from 'express';
-import { AuthService, SESSION_COOKIE } from './auth.service';
+import { AuthService, SESSION_COOKIE, TELEGRAM_FLOW_COOKIE } from './auth.service';
 import { AuthConfigService } from './auth-config.service';
 import { WebAuthnService } from './webauthn.service';
+import { TelegramOidcService } from './telegram-oidc.service';
 import { LoginDto } from './login.dto';
 import { SetupDto } from './dto/setup.dto';
 import { UpdateAuthConfigDto } from './dto/update-auth-config.dto';
 import { PasskeyRegisterVerifyDto } from './dto/passkey-register-verify.dto';
 import { PasskeyLoginVerifyDto } from './dto/passkey-login-verify.dto';
-import { AuthConfigDto, MeDto, PasskeyDto, SetupStatusDto } from './dto/auth-response.dto';
+import {
+  AuthConfigDto,
+  MeDto,
+  PasskeyDto,
+  SetupStatusDto,
+  TelegramStartDto,
+} from './dto/auth-response.dto';
 import { Public } from './public.decorator';
 import { SessionOnly } from './session-only.decorator';
 import {
@@ -39,8 +49,12 @@ import {
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+
+// Where the callback sends the browser if something blows up outside the normal result mapping.
+const TELEGRAM_FALLBACK_REDIRECT = '/login?telegram=exchange';
 
 // Session-only: a token must not manage credentials or change auth settings. @ApiBearerAuth is
 // per-method (not on the class) so the @Public login routes stay unlocked in the docs.
@@ -48,10 +62,13 @@ import {
 @SessionOnly()
 @Controller(API.AUTH)
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly auth: AuthService,
     private readonly authConfig: AuthConfigService,
     private readonly webauthn: WebAuthnService,
+    private readonly telegram: TelegramOidcService,
   ) {}
 
   @ApiOperation({ summary: 'Get setup status' })
@@ -117,6 +134,60 @@ export class AuthController {
     return { username };
   }
 
+  @ApiOperation({ summary: 'Start Telegram login' })
+  @ApiOkResponse({ type: TelegramStartDto })
+  @Public()
+  @Post(API_SUB.AUTH_TELEGRAM_LOGIN)
+  @HttpCode(200)
+  async telegramLogin(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<TelegramStartResponse> {
+    const { url, flowCookie } = await this.telegram.start('login', req.get('origin'));
+    res.cookie(TELEGRAM_FLOW_COOKIE, flowCookie, this.auth.flowCookieOptions());
+    return { url };
+  }
+
+  // Telegram redirects the browser here. Query values stay raw strings (no zod DTO): the response
+  // must always be a redirect back into the panel, never a JSON validation error.
+  @ApiOperation({ summary: 'Telegram sign-in callback' })
+  @ApiResponse({ status: 302, description: 'Redirect back into the panel with ?telegram=<result>' })
+  @Public()
+  @Get(API_SUB.AUTH_TELEGRAM_CALLBACK)
+  async telegramCallback(
+    @Query('code') code: unknown,
+    @Query('state') state: unknown,
+    @Query('error') error: unknown,
+    @Req() req: Request & { cookies?: Record<string, string> },
+    @Res() res: Response,
+  ): Promise<void> {
+    let target = TELEGRAM_FALLBACK_REDIRECT;
+    // Nothing may escape to the global filter: it logs the URL, which carries the code.
+    try {
+      const flowCookie = req.cookies?.[TELEGRAM_FLOW_COOKIE];
+      res.clearCookie(TELEGRAM_FLOW_COOKIE, this.auth.flowCookieClearOptions());
+      const outcome = await this.telegram.handleCallback({
+        code: queryString(code),
+        state: queryString(state),
+        error: queryString(error),
+        flowCookie,
+      });
+      if (outcome.username) {
+        res.cookie(
+          SESSION_COOKIE,
+          await this.auth.sign(outcome.username),
+          this.auth.cookieOptions(),
+        );
+      }
+      target = outcome.redirectTo;
+    } catch (e) {
+      this.logger.warn(
+        `Telegram callback failed unexpectedly: ${e instanceof Error ? e.name : 'error'}`,
+      );
+    }
+    res.redirect(302, target);
+  }
+
   @ApiOperation({ summary: 'Get current user' })
   @ApiOkResponse({ type: MeDto })
   @ApiBearerAuth()
@@ -139,6 +210,29 @@ export class AuthController {
   @Patch(API_SUB.AUTH_CONFIG)
   updateConfig(@Body() dto: UpdateAuthConfigDto): Promise<AuthConfig> {
     return this.authConfig.patchConfig(dto);
+  }
+
+  @ApiOperation({ summary: 'Start linking a Telegram account' })
+  @ApiOkResponse({ type: TelegramStartDto })
+  @ApiBearerAuth()
+  @Post(API_SUB.AUTH_TELEGRAM_LINK)
+  @HttpCode(200)
+  async telegramLink(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<TelegramStartResponse> {
+    const { url, flowCookie } = await this.telegram.start('link', req.get('origin'));
+    res.cookie(TELEGRAM_FLOW_COOKIE, flowCookie, this.auth.flowCookieOptions());
+    return { url };
+  }
+
+  @ApiOperation({ summary: 'Unlink the Telegram account' })
+  @ApiNoContentResponse()
+  @ApiBearerAuth()
+  @Delete(API_SUB.AUTH_TELEGRAM_LINK)
+  @HttpCode(204)
+  telegramUnlink(): Promise<void> {
+    return this.authConfig.unlinkTelegram();
   }
 
   @ApiOperation({ summary: 'Get passkey register options' })
@@ -174,4 +268,9 @@ export class AuthController {
   deletePasskey(@Param(ID_PARAM) uuid: string): Promise<void> {
     return this.webauthn.delete(uuid);
   }
+}
+
+/** A single query value, or undefined for a missing, repeated or nested one. */
+function queryString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
 }

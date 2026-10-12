@@ -109,7 +109,20 @@ export const common = {
       failed: 'Sign-in failed',
       or: 'or',
       passkey: 'Passkey',
-      noMethods: 'No sign-in methods are enabled. Re-enable one on the server.',
+      telegram: 'Sign in with Telegram',
+      telegramErrors: {
+        denied: 'Sign-in was cancelled in Telegram.',
+        state:
+          'The sign-in took too long or finished in a different browser. Try again and complete it in this browser.',
+        config: 'Telegram sign-in is not fully set up on the panel.',
+        exchange:
+          "Telegram couldn't be reached or rejected the client credentials. Try again later or check the Client ID and Client Secret.",
+        token: "Telegram's answer failed verification. Try again.",
+        mismatch: "This Telegram account isn't linked to the panel.",
+        disabled: 'Sign-in with Telegram is turned off.',
+      },
+      noMethods:
+        'No sign-in methods are enabled. Turn password sign-in back on from the server with cli enable-password.',
       setup: {
         title: 'First-run setup',
         subtitle: 'Create the owner account',
@@ -128,7 +141,6 @@ export const common = {
       commit: 'Commit',
       node: 'Node',
       copy: 'Copy',
-      copied: 'Copied',
       upToDate: 'Up to date',
       updateAvailable: 'v{{version}} is out',
       devBuild: 'Development build',
@@ -316,7 +328,20 @@ export const common = {
       failed: 'Не удалось войти',
       or: 'или',
       passkey: 'Passkey',
-      noMethods: 'Не включён ни один способ входа. Включите его на сервере.',
+      telegram: 'Войти через Telegram',
+      telegramErrors: {
+        denied: 'Вход отменён в Telegram.',
+        state:
+          'Вход занял слишком много времени или завершился в другом браузере. Попробуйте ещё раз и завершите его в этом браузере.',
+        config: 'Вход через Telegram настроен в панели не до конца.',
+        exchange:
+          'Telegram недоступен или отклонил данные клиента. Попробуйте позже или проверьте Client ID и Client Secret.',
+        token: 'Ответ Telegram не прошёл проверку. Попробуйте ещё раз.',
+        mismatch: 'Этот аккаунт Telegram не привязан к панели.',
+        disabled: 'Вход через Telegram выключен.',
+      },
+      noMethods:
+        'Не включён ни один способ входа. Верните вход по паролю на сервере командой cli enable-password.',
       setup: {
         title: 'Первоначальная настройка',
         subtitle: 'Создайте учётную запись владельца',
@@ -335,7 +360,6 @@ export const common = {
       commit: 'Коммит',
       node: 'Node',
       copy: 'Копировать',
-      copied: 'Скопировано',
       upToDate: 'Актуальная версия',
       updateAvailable: 'Вышла v{{version}}',
       devBuild: 'Сборка для разработки',

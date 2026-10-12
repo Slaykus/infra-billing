@@ -1,6 +1,6 @@
-import { IconActivity, IconArrowUpRight, IconCheck, IconCopy } from '@tabler/icons-react';
+import { IconActivity, IconArrowUpRight } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useBuildInfo } from '@/api/buildInfo';
 import {
@@ -9,63 +9,15 @@ import {
   githubReleaseUrl,
   useLatestRelease,
 } from '@/api/github';
+import { CopyButton } from '@/components/CopyButton';
 import { Button } from '@/components/ui/button';
 import { InkGlyph, type InkState } from '@/components/ink/InkGlyph';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { isNewerVersion, isReleaseVersion } from '@/lib/version';
 
 const DATE_FORMAT = 'DD.MM.YYYY HH:mm';
-
-// Copy with a short "copied" flash. `navigator.clipboard` is missing on plain-http LAN origins,
-// so a failed copy just leaves the button as it was.
-function useCopy(): [boolean, (text: string) => void] {
-  const [copied, setCopied] = useState(false);
-  const timer = useRef<number | undefined>(undefined);
-  useEffect(() => () => window.clearTimeout(timer.current), []);
-  const copy = (text: string) => {
-    navigator.clipboard
-      ?.writeText(text)
-      .then(() => {
-        setCopied(true);
-        window.clearTimeout(timer.current);
-        timer.current = window.setTimeout(() => setCopied(false), 1500);
-      })
-      .catch(() => {});
-  };
-  return [copied, copy];
-}
-
-function CopyButton({
-  text,
-  label,
-  className,
-}: {
-  text: string;
-  label: string;
-  className?: string;
-}) {
-  const { t } = useTranslation();
-  const [copied, copy] = useCopy();
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label={label}
-          className={className}
-          onClick={() => copy(text)}
-        >
-          {copied ? <IconCheck className="size-3.5" /> : <IconCopy className="size-3.5" />}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{copied ? t('build.copied') : label}</TooltipContent>
-    </Tooltip>
-  );
-}
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (

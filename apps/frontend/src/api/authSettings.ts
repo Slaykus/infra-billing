@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AuthConfig, Passkey, UpdateAuthConfig } from '@infra/shared';
+import type { AuthConfig, Passkey, TelegramStartResponse, UpdateAuthConfig } from '@infra/shared';
 import { API_PATH } from '@infra/shared';
 import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/browser';
 import { api } from './client';
@@ -60,5 +60,27 @@ export function useDeletePasskey() {
       await api.delete(API_PATH.AUTH.PASSKEY_BY_ID(uuid));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['passkeys'] }),
+  });
+}
+
+/** Link the owner's Telegram account: same OIDC round-trip as sign-in, back to the settings page. */
+export function useTelegramLink() {
+  return useMutation({
+    mutationFn: async () =>
+      (await api.post<TelegramStartResponse>(API_PATH.AUTH.TELEGRAM_LINK)).data,
+    onSuccess: ({ url }) => window.location.assign(url),
+  });
+}
+
+export function useTelegramUnlink() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      await api.delete(API_PATH.AUTH.TELEGRAM_LINK);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['authConfig'] });
+      qc.invalidateQueries({ queryKey: ['setupStatus'] });
+    },
   });
 }

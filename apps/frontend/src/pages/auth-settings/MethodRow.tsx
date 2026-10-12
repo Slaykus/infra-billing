@@ -12,6 +12,8 @@ export function MethodRow({
   description,
   enabled,
   onToggle,
+  switchDisabled,
+  switchHint,
   opened,
   onToggleOpen,
   children,
@@ -21,6 +23,9 @@ export function MethodRow({
   description: string;
   enabled: boolean;
   onToggle: (value: boolean) => void;
+  /** The method can't be turned on yet; `switchHint` says what to do first. */
+  switchDisabled?: boolean;
+  switchHint?: string;
   opened?: boolean;
   onToggleOpen?: () => void;
   children?: ReactNode;
@@ -34,6 +39,7 @@ export function MethodRow({
       <div className="min-w-0">
         <p className="text-sm font-medium">{title}</p>
         <p className="text-[13px] text-ink-2">{description}</p>
+        {switchDisabled && switchHint && <p className="mt-0.5 text-xs text-ink-3">{switchHint}</p>}
       </div>
     </div>
   );
@@ -42,7 +48,12 @@ export function MethodRow({
     return (
       <div className="flex items-center justify-between gap-3 py-4">
         <div className="min-w-0 flex-1">{label}</div>
-        <Switch checked={enabled} onCheckedChange={onToggle} aria-label={title} />
+        <Switch
+          checked={enabled}
+          onCheckedChange={onToggle}
+          disabled={switchDisabled}
+          aria-label={title}
+        />
       </div>
     );
   }
@@ -65,7 +76,12 @@ export function MethodRow({
               />
             </Button>
           </CollapsibleTrigger>
-          <Switch checked={enabled} onCheckedChange={onToggle} aria-label={title} />
+          <Switch
+            checked={enabled}
+            onCheckedChange={onToggle}
+            disabled={switchDisabled}
+            aria-label={title}
+          />
         </div>
       </div>
       <CollapsibleContent>
