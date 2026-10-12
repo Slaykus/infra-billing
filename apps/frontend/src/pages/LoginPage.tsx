@@ -1,12 +1,32 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { type LoginInput, loginSchema } from '@infra/shared';
-import { IconArrowsShuffle, IconFingerprint, IconLoader2 } from '@tabler/icons-react';
+import {
+  type LoginInput,
+  loginSchema,
+  type TelegramResult,
+  telegramResultSchema,
+} from '@infra/shared';
+import {
+  IconArrowsShuffle,
+  IconBrandTelegram,
+  IconFingerprint,
+  IconLoader2,
+} from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { useLogin, usePasskeyLogin, useSetup, useSetupStatus } from '@/api/auth';
+import { Navigate, useSearchParams } from 'react-router-dom';
+import {
+  useLogin,
+  useMe,
+  usePasskeyLogin,
+  useSetup,
+  useSetupStatus,
+  useTelegramLogin,
+} from '@/api/auth';
 import { apiErrorMessage } from '@/api/client';
 import { mapPasskeyError, passkeySupported } from '@/api/webauthn';
 import { BrandWordmark } from '@/components/BrandWordmark';
+import { InkGlyph } from '@/components/ink/InkGlyph';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { PasswordInput } from '@/components/PasswordInput';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -25,7 +45,13 @@ import { generatePassword } from '@/utils/password';
 export function LoginPage() {
   const { t } = useTranslation();
   const status = useSetupStatus();
+  const me = useMe();
   const needsSetup = status.data?.needsSetup ?? false;
+  const telegramError = useTelegramReturnError();
+
+  // The Telegram callback sets the session and redirects to "/", but an owner who opens /login
+  // with a live session (a bookmark, the back button) belongs in the app as well.
+  if (me.isSuccess) return <Navigate to="/" replace />;
 
   return (
     <div className="flex min-h-svh flex-col items-center justify-center bg-background px-4 py-10">
@@ -46,6 +72,15 @@ export function LoginPage() {
             {needsSetup ? t('login.setup.subtitle') : t('dashboard.subtitle')}
           </p>
 
+          {telegramError && !needsSetup && (
+            <Alert className="mb-4">
+              <InkGlyph state={telegramError === 'denied' ? 'warn' : 'failed'} />
+              <AlertDescription className="text-foreground">
+                {t(`login.telegramErrors.${telegramError}`)}
+              </AlertDescription>
+            </Alert>
+          )}
+
           {status.isLoading ? (
             <div className="flex justify-center py-8">
               <IconLoader2 className="size-5 animate-spin text-ink-3" />
@@ -56,12 +91,36 @@ export function LoginPage() {
             <SignInForm
               passwordEnabled={status.data?.passwordEnabled ?? true}
               passkeyEnabled={status.data?.passkeyEnabled ?? false}
+              telegramEnabled={status.data?.telegramEnabled ?? false}
             />
           )}
         </div>
       </div>
     </div>
   );
+}
+
+// A failed Telegram sign-in comes back as /login?telegram=<code>. Keep the code for this visit
+// but drop it from the address, so a reload or a shared link doesn't replay a stale error.
+function useTelegramReturnError(): Exclude<TelegramResult, 'linked'> | null {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [error] = useState(() => {
+    const parsed = telegramResultSchema.safeParse(searchParams.get('telegram'));
+    return parsed.success && parsed.data !== 'linked' ? parsed.data : null;
+  });
+  const hasParam = searchParams.has('telegram');
+  useEffect(() => {
+    if (!hasParam) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('telegram');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [hasParam, setSearchParams]);
+  return error;
 }
 
 interface SetupValues {
@@ -164,13 +223,16 @@ function SetupForm() {
 function SignInForm({
   passwordEnabled,
   passkeyEnabled,
+  telegramEnabled,
 }: {
   passwordEnabled: boolean;
   passkeyEnabled: boolean;
+  telegramEnabled: boolean;
 }) {
   const { t } = useTranslation();
   const login = useLogin();
   const passkeyLogin = usePasskeyLogin();
+  const telegramLogin = useTelegramLogin();
   const {
     register,
     handleSubmit,
@@ -192,7 +254,12 @@ function SignInForm({
     }
   };
 
-  if (!passwordEnabled && !passkeyEnabled) {
+  const doTelegram = () =>
+    telegramLogin.mutate(undefined, {
+      onError: (e) => notifyError(apiErrorMessage(e, t('login.failed'))),
+    });
+
+  if (!passwordEnabled && !passkeyEnabled && !telegramEnabled) {
     return (
       <Alert variant="destructive">
         <AlertDescription>{t('login.noMethods')}</AlertDescription>
@@ -246,7 +313,7 @@ function SignInForm({
         </form>
       )}
 
-      {passwordEnabled && canPasskey && (
+      {passwordEnabled && (canPasskey || telegramEnabled) && (
         <div className="flex items-center gap-3">
           <Separator className="flex-1" />
           <span className="text-xs text-ink-3">{t('login.or')}</span>
@@ -273,6 +340,23 @@ function SignInForm({
         ) : (
           <p className="text-center text-xs text-ink-2">{t('auth.passkeys.unsupported')}</p>
         ))}
+
+      {telegramEnabled && (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          disabled={telegramLogin.isPending}
+          onClick={doTelegram}
+        >
+          {telegramLogin.isPending ? (
+            <IconLoader2 className="size-4 animate-spin" />
+          ) : (
+            <IconBrandTelegram className="size-4" />
+          )}
+          {t('login.telegram')}
+        </Button>
+      )}
     </div>
   );
 }

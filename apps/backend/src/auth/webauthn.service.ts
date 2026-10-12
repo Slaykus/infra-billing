@@ -151,12 +151,13 @@ export class WebAuthnService {
     const row = await this.authConfig.requireRow();
     const passkey = await this.passkeys.findByUuid(uuid);
     if (!passkey) throw new NotFoundException('Passkey not found');
-    // Don't let the owner delete their only passkey when password login is off (lockout).
-    if (!row.passwordEnabled && (await this.passkeys.count()) <= 1) {
-      throw new BadRequestException(
-        'Cannot delete the last passkey while password login is disabled',
-      );
-    }
+    // Lockout guard, evaluated as if this passkey were already gone.
+    this.authConfig.assertSignInPossible({
+      passwordEnabled: row.passwordEnabled,
+      passkeyEnabled: row.passkeyEnabled,
+      passkeyCount: (await this.passkeys.count()) - 1,
+      telegramUsable: this.authConfig.telegramUsable(row),
+    });
     await this.passkeys.delete(uuid);
   }
 

@@ -44,6 +44,10 @@ export const API_SUB = {
   AUTH_PASSKEY_REGISTER_VERIFY: 'passkey/register/verify',
   AUTH_PASSKEYS: 'passkeys',
   AUTH_PASSKEY_BY_ID: `passkeys/${ID}`,
+  AUTH_TELEGRAM_LOGIN: 'telegram/login',
+  // POST starts linking the owner's Telegram account, DELETE unlinks it.
+  AUTH_TELEGRAM_LINK: 'telegram/link',
+  AUTH_TELEGRAM_CALLBACK: 'telegram/callback',
   PROJECT_MOVE_ALL: `${ID}/move-all`,
   PROJECT_EMPTY: `${ID}/empty`,
   PROJECT_STATS: `${ID}/stats`,
@@ -92,6 +96,9 @@ export const API_PATH = {
     PASSKEY_REGISTER_VERIFY: path(API.AUTH, API_SUB.AUTH_PASSKEY_REGISTER_VERIFY),
     PASSKEYS: path(API.AUTH, API_SUB.AUTH_PASSKEYS),
     PASSKEY_BY_ID: (uuid: string) => pathId(API.AUTH, API_SUB.AUTH_PASSKEY_BY_ID, uuid),
+    TELEGRAM_LOGIN: path(API.AUTH, API_SUB.AUTH_TELEGRAM_LOGIN),
+    TELEGRAM_LINK: path(API.AUTH, API_SUB.AUTH_TELEGRAM_LINK),
+    TELEGRAM_CALLBACK: path(API.AUTH, API_SUB.AUTH_TELEGRAM_CALLBACK),
   },
   PROVIDERS: {
     ROOT: path(API.PROVIDERS),
@@ -150,3 +157,9 @@ export const API_PATH = {
     BY_ID: (uuid: string) => pathId(API.TOKENS, API_SUB.BY_ID, uuid),
   },
 } as const;
+
+/**
+ * Absolute path of the Telegram OIDC callback (the redirect URI is `<panel origin>` + this). The
+ * owner registers it in BotFather, so backend and settings page must build it from the same place.
+ */
+export const TELEGRAM_CALLBACK_PATH = `/${API_PREFIX}${API_PATH.AUTH.TELEGRAM_CALLBACK}`;

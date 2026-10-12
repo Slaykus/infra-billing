@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import type { LoginInput, Me, SetupInput, SetupStatus } from '@infra/shared';
+import type { LoginInput, Me, SetupInput, SetupStatus, TelegramStartResponse } from '@infra/shared';
 import { API_PATH } from '@infra/shared';
 import type { PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser';
 import { api } from './client';
@@ -66,6 +66,18 @@ export function usePasskeyLogin() {
       qc.setQueryData(['me'], me);
       navigate('/');
     },
+  });
+}
+
+/**
+ * Telegram sign-in: the server prepares the OIDC round-trip and hands back the authorization URL.
+ * Starting with a request (not a plain link) lets a misconfiguration surface as a readable error.
+ */
+export function useTelegramLogin() {
+  return useMutation({
+    mutationFn: async () =>
+      (await api.post<TelegramStartResponse>(API_PATH.AUTH.TELEGRAM_LOGIN)).data,
+    onSuccess: ({ url }) => window.location.assign(url),
   });
 }
 

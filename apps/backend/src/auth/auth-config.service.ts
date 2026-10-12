@@ -14,6 +14,29 @@ import { hashPassword } from './password.util';
 
 // The singleton AuthConfig row (id=1) at runtime. Bytes columns come back as Uint8Array.
 type AuthConfigRow = Prisma.AuthConfigGetPayload<Record<string, never>>;
+type TelegramFields = Pick<
+  AuthConfigRow,
+  | 'telegramEnabled'
+  | 'telegramClientId'
+  | 'telegramClientSecretEnc'
+  | 'telegramOrigin'
+  | 'telegramUserId'
+>;
+
+/** What the sign-in lockout guard looks at, always with the values as they would be saved. */
+export interface SignInMethods {
+  passwordEnabled: boolean;
+  passkeyEnabled: boolean;
+  passkeyCount: number;
+  telegramUsable: boolean;
+}
+
+/** Decrypted Telegram OIDC client settings. */
+export interface TelegramClient {
+  clientId: string;
+  clientSecret: string;
+  origin: string;
+}
 
 @Injectable()
 export class AuthConfigService {
@@ -44,11 +67,20 @@ export class AuthConfigService {
   /** Public bootstrap status driving the login/setup screen. */
   async getStatus(): Promise<SetupStatus> {
     const row = await this.getRow();
-    if (!row) return { needsSetup: true, passwordEnabled: false, passkeyEnabled: false };
+    if (!row) {
+      return {
+        needsSetup: true,
+        passwordEnabled: false,
+        passkeyEnabled: false,
+        telegramEnabled: false,
+      };
+    }
     return {
       needsSetup: false,
       passwordEnabled: row.passwordEnabled,
       passkeyEnabled: row.passkeyEnabled,
+      // The login page only offers Telegram when it would actually work.
+      telegramEnabled: this.telegramUsable(row),
     };
   }
 
@@ -78,6 +110,12 @@ export class AuthConfigService {
       rpId: row.rpId ?? '',
       rpName: row.rpName ?? '',
       rpOrigin: row.rpOrigin ?? '',
+      telegramEnabled: row.telegramEnabled,
+      telegramClientId: row.telegramClientId ?? '',
+      hasTelegramClientSecret: !!row.telegramClientSecretEnc,
+      telegramOrigin: row.telegramOrigin ?? '',
+      telegramUserId: row.telegramUserId ?? '',
+      telegramDisplayName: row.telegramDisplayName ?? '',
     };
   }
 
@@ -86,13 +124,39 @@ export class AuthConfigService {
     const passwordEnabled = dto.passwordEnabled ?? row.passwordEnabled;
     const passkeyEnabled = dto.passkeyEnabled ?? row.passkeyEnabled;
 
-    // Lockout guards: never leave the owner unable to sign in.
-    if (!passwordEnabled && !passkeyEnabled) {
-      throw new BadRequestException('At least one login method must remain enabled');
+    // Telegram values after the patch. Empty client ID / origin clear the field; an empty or
+    // omitted secret keeps the stored one (it is write-only).
+    const telegramClientId =
+      dto.telegramClientId !== undefined ? dto.telegramClientId || null : row.telegramClientId;
+    const telegramOrigin =
+      dto.telegramOrigin !== undefined ? dto.telegramOrigin || null : row.telegramOrigin;
+    const newSecret = dto.telegramClientSecret || null;
+    // New client settings invalidate the link: re-linking proves they work end to end before
+    // Telegram can be relied on again. This wins over a telegramEnabled sent in the same patch.
+    const credsChanged =
+      telegramClientId !== row.telegramClientId ||
+      telegramOrigin !== row.telegramOrigin ||
+      newSecret !== null;
+    const telegram: TelegramFields = {
+      telegramEnabled: credsChanged ? false : (dto.telegramEnabled ?? row.telegramEnabled),
+      telegramClientId,
+      telegramClientSecretEnc: newSecret
+        ? this.crypto.encrypt(newSecret)
+        : row.telegramClientSecretEnc,
+      telegramOrigin,
+      telegramUserId: credsChanged ? null : row.telegramUserId,
+    };
+    if (!credsChanged && dto.telegramEnabled === true && !this.telegramReady(telegram)) {
+      throw new BadRequestException('Link your Telegram account first');
     }
-    if (!passwordEnabled && (await this.passkeys.count()) === 0) {
-      throw new BadRequestException('Add a passkey before disabling password login');
-    }
+
+    // Lockout guard: never leave the owner unable to sign in.
+    this.assertSignInPossible({
+      passwordEnabled,
+      passkeyEnabled,
+      passkeyCount: await this.passkeys.count(),
+      telegramUsable: this.telegramUsable(telegram),
+    });
 
     const data: Prisma.AuthConfigUpdateInput = {};
     if (dto.passwordEnabled !== undefined) data.passwordEnabled = dto.passwordEnabled;
@@ -101,9 +165,84 @@ export class AuthConfigService {
     if (dto.rpId !== undefined) data.rpId = dto.rpId.trim() || null;
     if (dto.rpName !== undefined) data.rpName = dto.rpName.trim() || null;
     if (dto.rpOrigin !== undefined) data.rpOrigin = dto.rpOrigin.trim() || null;
+    if (dto.telegramClientId !== undefined) data.telegramClientId = telegramClientId;
+    if (dto.telegramOrigin !== undefined) data.telegramOrigin = telegramOrigin;
+    if (newSecret) data.telegramClientSecretEnc = telegram.telegramClientSecretEnc;
+    if (dto.telegramEnabled !== undefined || credsChanged) {
+      data.telegramEnabled = telegram.telegramEnabled;
+    }
+    if (credsChanged) {
+      data.telegramUserId = null;
+      data.telegramDisplayName = null;
+    }
 
     await this.repo.update(data);
     return this.getConfig();
+  }
+
+  /**
+   * The single lockout check: at least one sign-in method must keep working. Callers pass the
+   * state as it would be after their change.
+   */
+  assertSignInPossible(methods: SignInMethods): void {
+    if (methods.passwordEnabled) return;
+    if (methods.passkeyEnabled && methods.passkeyCount > 0) return;
+    if (methods.telegramUsable) return;
+    throw new BadRequestException(
+      'Keep at least one working sign-in method: password, a registered passkey or a linked Telegram account',
+    );
+  }
+
+  /** Client ID, secret, origin and a linked account are all in place. */
+  telegramReady(t: Omit<TelegramFields, 'telegramEnabled'>): boolean {
+    return !!(
+      t.telegramClientId &&
+      t.telegramClientSecretEnc &&
+      t.telegramOrigin &&
+      t.telegramUserId
+    );
+  }
+
+  /** Telegram sign-in is switched on and would actually work. */
+  telegramUsable(t: TelegramFields): boolean {
+    return t.telegramEnabled && this.telegramReady(t);
+  }
+
+  /** Decrypted client settings, or null when any of them is missing. */
+  getTelegramClient(row: AuthConfigRow): TelegramClient | null {
+    if (!row.telegramClientId || !row.telegramClientSecretEnc || !row.telegramOrigin) return null;
+    let clientSecret: string;
+    try {
+      clientSecret = this.crypto.decrypt(row.telegramClientSecretEnc);
+    } catch {
+      // Unreadable after an ENCRYPTION_KEY change: same remedy as a missing secret, save it again.
+      return null;
+    }
+    return { clientId: row.telegramClientId, clientSecret, origin: row.telegramOrigin };
+  }
+
+  /** Remember the owner's Telegram account (end of the link round-trip) and enable the method. */
+  async linkTelegram(telegramUserId: string, displayName: string | null): Promise<void> {
+    await this.repo.update({
+      telegramUserId,
+      telegramDisplayName: displayName,
+      telegramEnabled: true,
+    });
+  }
+
+  async unlinkTelegram(): Promise<void> {
+    const row = await this.requireRow();
+    this.assertSignInPossible({
+      passwordEnabled: row.passwordEnabled,
+      passkeyEnabled: row.passkeyEnabled,
+      passkeyCount: await this.passkeys.count(),
+      telegramUsable: false,
+    });
+    await this.repo.update({
+      telegramUserId: null,
+      telegramDisplayName: null,
+      telegramEnabled: false,
+    });
   }
 
   /**

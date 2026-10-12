@@ -1,5 +1,8 @@
 export const CONTROLLERS_INFO = {
-  AUTH: { TAG: 'Auth', DESCRIPTION: 'Admin login, session and passkeys (session-only)' },
+  AUTH: {
+    TAG: 'Auth',
+    DESCRIPTION: 'Admin login, session, passkeys and Telegram sign-in (session-only)',
+  },
   API_TOKENS: { TAG: 'API Tokens', DESCRIPTION: 'Create and revoke API tokens (session-only)' },
   PROVIDERS: { TAG: 'Providers', DESCRIPTION: 'Hosting providers and merging duplicates' },
   PROVIDER_ACCOUNTS: {

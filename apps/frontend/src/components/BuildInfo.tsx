@@ -1,6 +1,6 @@
-import { IconActivity, IconArrowUpRight, IconCheck, IconCopy } from '@tabler/icons-react';
+import { IconActivity, IconArrowUpRight, IconTag } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useBuildInfo } from '@/api/buildInfo';
 import {
@@ -9,63 +9,15 @@ import {
   githubReleaseUrl,
   useLatestRelease,
 } from '@/api/github';
+import { CopyButton } from '@/components/CopyButton';
 import { Button } from '@/components/ui/button';
 import { InkGlyph, type InkState } from '@/components/ink/InkGlyph';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
+import { SidebarLinkRow } from '@/layout/SidebarLinkRow';
 import { isNewerVersion, isReleaseVersion } from '@/lib/version';
 
 const DATE_FORMAT = 'DD.MM.YYYY HH:mm';
-
-// Copy with a short "copied" flash. `navigator.clipboard` is missing on plain-http LAN origins,
-// so a failed copy just leaves the button as it was.
-function useCopy(): [boolean, (text: string) => void] {
-  const [copied, setCopied] = useState(false);
-  const timer = useRef<number | undefined>(undefined);
-  useEffect(() => () => window.clearTimeout(timer.current), []);
-  const copy = (text: string) => {
-    navigator.clipboard
-      ?.writeText(text)
-      .then(() => {
-        setCopied(true);
-        window.clearTimeout(timer.current);
-        timer.current = window.setTimeout(() => setCopied(false), 1500);
-      })
-      .catch(() => {});
-  };
-  return [copied, copy];
-}
-
-function CopyButton({
-  text,
-  label,
-  className,
-}: {
-  text: string;
-  label: string;
-  className?: string;
-}) {
-  const { t } = useTranslation();
-  const [copied, copy] = useCopy();
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label={label}
-          className={className}
-          onClick={() => copy(text)}
-        >
-          {copied ? <IconCheck className="size-3.5" /> : <IconCopy className="size-3.5" />}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{copied ? t('build.copied') : label}</TooltipContent>
-    </Tooltip>
-  );
-}
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -96,7 +48,7 @@ export function BuildInfo() {
   const latest = release.data;
   const hasUpdate = !isDev && latest != null && isNewerVersion(latest, version);
 
-  if (isPending) return <Skeleton className="h-4 w-12 rounded-sm" />;
+  if (isPending) return <Skeleton className="mx-2.5 my-2 h-4 w-28 rounded-sm" />;
   if (!data) return null;
 
   // "" is the env default, "unknown" is what `task docker-build` passes outside a git checkout.
@@ -132,29 +84,24 @@ export function BuildInfo() {
   return (
     <HoverCard openDelay={200} closeDelay={150}>
       <HoverCardTrigger asChild>
-        {/* A quiet version next to the brand; an available update adds the attention dot. A dev
-            build reads "dev" in the brand's ink so it is never mistaken for a release. */}
-        <a
+        {/* A quiet row at the foot of the sidebar; an available update adds the attention dot. A
+            dev build reads "dev", so it is never mistaken for a release. */}
+        <SidebarLinkRow
           href={releaseUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+          icon={IconTag}
           aria-label={isDev ? t('build.openDevBranch') : t('build.openRelease', { version })}
-          className={cn(
-            'inline-flex items-center gap-1 rounded-sm px-1 text-xs text-ink-3 outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 data-[state=open]:text-foreground',
-            (hasUpdate || isDev) && 'text-foreground',
-            isDev && 'font-medium',
-          )}
+          trailing={hasUpdate ? <InkGlyph state="warn" size={9} /> : null}
         >
-          {label}
-          {hasUpdate ? <InkGlyph state="warn" size={9} /> : null}
-        </a>
+          {t('build.version')} {isDev ? 'dev' : version}
+        </SidebarLinkRow>
       </HoverCardTrigger>
 
       {/* Radix HoverCard is a pointer preview: it sets tabindex=-1 on everything inside, so the
           copy buttons and links here are mouse-only. The pill itself is the keyboard path. */}
       <HoverCardContent
+        side="right"
         align="end"
-        sideOffset={8}
+        sideOffset={12}
         collisionPadding={8}
         className="w-80 rounded-xl p-0"
       >
