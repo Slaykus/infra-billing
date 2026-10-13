@@ -1,6 +1,7 @@
 import { IconCheck, IconChevronDown, IconPlus } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { comboboxTriggerClass } from '@/components/Combobox';
 import {
   Command,
   CommandEmpty,
@@ -82,10 +83,10 @@ export function CreatableCombobox({
           type="button"
           role="combobox"
           aria-expanded={open}
-          className="flex h-9 w-full items-center justify-between gap-2 rounded-md border border-transparent bg-field px-3 py-2 text-sm transition-[color,box-shadow,border-color] outline-none focus-visible:border-ring/40 focus-visible:ring-3 focus-visible:ring-ring/15"
+          className={comboboxTriggerClass}
         >
           <span className={cn('truncate', !value && 'text-muted-foreground')}>{display}</span>
-          <IconChevronDown className="size-4 shrink-0 text-ink-3" />
+          <IconChevronDown className="size-4 shrink-0 text-ink-3" stroke={1.5} />
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
@@ -95,7 +96,7 @@ export function CreatableCombobox({
             value={query}
             onValueChange={setQuery}
           />
-          <CommandList>
+          <CommandList className="max-h-72">
             <CommandEmpty>
               {canCreate ? (
                 <button
@@ -118,8 +119,13 @@ export function CreatableCombobox({
                   keywords={[o.value]}
                   onSelect={() => pick(o.value)}
                 >
-                  {o.label}
-                  {o.value === value && <IconCheck className="ml-auto size-4 text-ink-2" />}
+                  <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                  <IconCheck
+                    className={cn(
+                      'size-4 shrink-0',
+                      o.value === value ? 'opacity-100' : 'opacity-0',
+                    )}
+                  />
                 </CommandItem>
               ))}
               {canCreate && (

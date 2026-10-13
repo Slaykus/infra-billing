@@ -2,19 +2,14 @@ import type { Provider, Service } from '@infra/shared';
 import { IconCalendarDollar, IconStack2 } from '@tabler/icons-react';
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { Combobox, type ComboboxOption } from '@/components/Combobox';
 import { CountryCombobox } from '@/components/CountryCombobox';
 import { CreatableCombobox } from '@/components/CreatableCombobox';
 import { DateField } from '@/components/DateField';
 import { FormSection } from '@/components/FormSection';
+import { ProviderCombobox } from '@/components/ProviderCombobox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { normalizeMoney, trimMoney } from '@/utils/format';
 import { AccountSelect, accountsOf, impliedAccount } from './AccountSelect';
 import { OverriddenMark } from './OverriddenMark';
@@ -41,7 +36,7 @@ interface ServiceFormFieldsProps {
   form: UseFormReturn<SForm>;
   editing: Service | null;
   providers: Provider[] | undefined;
-  projectOptions: { value: string; label: string }[];
+  projectOptions: ComboboxOption[];
   typeOptions: { value: string; label: string }[];
   periodOptions: { value: string; label: string }[];
   currencyOptions: { value: string; label: string }[];
@@ -170,26 +165,19 @@ export function ServiceFormFields({
             name="providerUuid"
             rules={{ validate: (v) => (v ? true : t('validation.selectProvider')) }}
             render={({ field }) => (
-              <Select
+              <ProviderCombobox
+                id="service-provider"
+                providers={providers}
                 value={field.value}
-                onValueChange={(v) => {
+                onChange={(v) => {
                   field.onChange(v);
                   setValue('accountUuid', impliedAccount(accountsOf(providers, v)));
                 }}
+                placeholder={t('validation.selectProvider')}
                 // Synced services are matched by account, so can't be reattached elsewhere.
                 disabled={Boolean(editing?.isManaged)}
-              >
-                <SelectTrigger id="service-provider" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(providers ?? []).map((p) => (
-                    <SelectItem key={p.uuid} value={p.uuid}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                invalid={!!errors.providerUuid}
+              />
             )}
           />
           {editing?.isManaged && (
@@ -225,18 +213,12 @@ export function ServiceFormFields({
             control={control}
             name="projectUuid"
             render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="service-project" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {projectOptions.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                id="service-project"
+                value={field.value}
+                onChange={field.onChange}
+                options={projectOptions}
+              />
             )}
           />
         </div>
@@ -316,18 +298,12 @@ export function ServiceFormFields({
               control={control}
               name="period"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="service-period" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {periodOptions.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  id="service-period"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={periodOptions}
+                />
               )}
             />
           </div>
@@ -367,18 +343,12 @@ export function ServiceFormFields({
               control={control}
               name="currency"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="service-currency" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currencyOptions.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  id="service-currency"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={currencyOptions}
+                />
               )}
             />
           </div>

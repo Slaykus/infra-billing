@@ -209,7 +209,7 @@ export function PaymentsPage() {
             <PaymentsFilters
               filter={filter}
               setFilter={setFilterFromPopover}
-              providerOptions={providerOptions}
+              providers={providers}
             />
             <Button size="sm" onClick={openCreate} disabled={providerOptions.length === 0}>
               <IconPlus className="size-4" />

@@ -1,21 +1,14 @@
 import { IconFilter } from '@tabler/icons-react';
+import type { Provider } from '@infra/shared';
 import type { Dispatch, SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ServiceFilter } from '@/api/services';
+import { Combobox, type ComboboxOption } from '@/components/Combobox';
 import { Segmented } from '@/components/ink/Segmented';
+import { ProviderCombobox } from '@/components/ProviderCombobox';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-
-// SelectItem forbids value="" — sentinel for the "no filter" option.
-const ALL = 'all';
 
 type Activity = 'all' | 'active' | 'inactive';
 
@@ -46,16 +39,16 @@ export function ServicesActivityControl({ filter, setFilter }: FilterProps) {
 }
 
 interface ServicesFilterPopoverProps extends FilterProps {
-  providerOptions: { value: string; label: string }[];
-  projectOptions: { value: string; label: string }[];
-  typeOptions: { value: string; label: string }[];
+  providers: Provider[] | undefined;
+  projectOptions: ComboboxOption[];
+  typeOptions: ComboboxOption[];
 }
 
 /** Ghost "Filter" button in the header bar; the count shows how many selects narrow the list. */
 export function ServicesFilterPopover({
   filter,
   setFilter,
-  providerOptions,
+  providers,
   projectOptions,
   typeOptions,
 }: ServicesFilterPopoverProps) {
@@ -75,64 +68,31 @@ export function ServicesFilterPopover({
       <PopoverContent align="end" className="w-64 space-y-3">
         <div className="space-y-1.5">
           <Label htmlFor="services-filter-provider">{t('services.fieldProvider')}</Label>
-          <Select
-            value={filter.providerUuid ?? ALL}
-            onValueChange={(v) =>
-              setFilter((f) => ({ ...f, providerUuid: v === ALL ? undefined : v }))
-            }
-          >
-            <SelectTrigger id="services-filter-provider" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>{t('services.filterAllProviders')}</SelectItem>
-              {providerOptions.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <ProviderCombobox
+            id="services-filter-provider"
+            providers={providers}
+            value={filter.providerUuid ?? ''}
+            onChange={(v) => setFilter((f) => ({ ...f, providerUuid: v || undefined }))}
+            resetLabel={t('services.filterAllProviders')}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="services-filter-project">{t('services.fieldProject')}</Label>
-          <Select
-            value={filter.projectUuid ?? ALL}
-            onValueChange={(v) =>
-              setFilter((f) => ({ ...f, projectUuid: v === ALL ? undefined : v }))
-            }
-          >
-            <SelectTrigger id="services-filter-project" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>{t('services.filterAllProjects')}</SelectItem>
-              {projectOptions.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Combobox
+            id="services-filter-project"
+            value={filter.projectUuid ?? ''}
+            onChange={(v) => setFilter((f) => ({ ...f, projectUuid: v || undefined }))}
+            options={[{ value: '', label: t('services.filterAllProjects') }, ...projectOptions]}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="services-filter-type">{t('services.fieldType')}</Label>
-          <Select
-            value={filter.type ?? ALL}
-            onValueChange={(v) => setFilter((f) => ({ ...f, type: v === ALL ? undefined : v }))}
-          >
-            <SelectTrigger id="services-filter-type" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>{t('services.filterAllTypes')}</SelectItem>
-              {typeOptions.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Combobox
+            id="services-filter-type"
+            value={filter.type ?? ''}
+            onChange={(v) => setFilter((f) => ({ ...f, type: v || undefined }))}
+            options={[{ value: '', label: t('services.filterAllTypes') }, ...typeOptions]}
+          />
         </div>
       </PopoverContent>
     </Popover>

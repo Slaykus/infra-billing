@@ -61,13 +61,16 @@ export function ProviderIcon({
   if (TablerIcon) {
     const bg = iconBg || DEFAULT_ICON_BG;
     const fg = iconFgForBg(bg);
+    const glyph = Math.max(12, Math.round(size * 0.64));
     return (
       <div
         className="flex shrink-0 items-center justify-center ring-1 ring-foreground/10 ring-inset grayscale select-none"
         style={{ width: size, height: size, borderRadius: radius, backgroundColor: bg, color: fg }}
       >
         {createElement(TablerIcon, {
-          size: Math.max(12, Math.round(size * 0.64)),
+          size: glyph,
+          // Inline size: menu rows force their own svg size on every descendant icon.
+          style: { width: glyph, height: glyph },
           stroke: 1.75,
           color: fg,
           'aria-hidden': true,

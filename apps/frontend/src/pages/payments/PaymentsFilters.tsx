@@ -1,31 +1,23 @@
+import type { Provider } from '@infra/shared';
 import { IconFilter } from '@tabler/icons-react';
 import type { Dispatch, SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PaymentFilter } from '@/api/payments';
 import { DateField } from '@/components/DateField';
+import { ProviderCombobox } from '@/components/ProviderCombobox';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { toIso } from './paymentForm';
-
-// Radix Select forbids value="" — sentinel for the "all providers" item.
-const ALL = 'all';
 
 interface PaymentsFiltersProps {
   filter: PaymentFilter;
   setFilter: Dispatch<SetStateAction<PaymentFilter>>;
-  providerOptions: { value: string; label: string }[];
+  providers: Provider[] | undefined;
 }
 
 /** Header "Filter" button: provider plus a custom date range, in a popover. */
-export function PaymentsFilters({ filter, setFilter, providerOptions }: PaymentsFiltersProps) {
+export function PaymentsFilters({ filter, setFilter, providers }: PaymentsFiltersProps) {
   const { t } = useTranslation();
   const activeCount = [filter.providerUuid, filter.from, filter.to].filter(Boolean).length;
   return (
@@ -40,24 +32,13 @@ export function PaymentsFilters({ filter, setFilter, providerOptions }: Payments
       <PopoverContent align="end" className="w-72 space-y-3">
         <div className="space-y-1.5">
           <Label htmlFor="payments-filter-provider">{t('payments.filterProvider')}</Label>
-          <Select
-            value={filter.providerUuid ?? ALL}
-            onValueChange={(v) =>
-              setFilter((f) => ({ ...f, providerUuid: v === ALL ? undefined : v }))
-            }
-          >
-            <SelectTrigger id="payments-filter-provider" className="w-full">
-              <SelectValue placeholder={t('payments.filterAllProviders')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>{t('payments.filterAllProviders')}</SelectItem>
-              {providerOptions.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <ProviderCombobox
+            id="payments-filter-provider"
+            providers={providers}
+            value={filter.providerUuid ?? ''}
+            onChange={(v) => setFilter((f) => ({ ...f, providerUuid: v || undefined }))}
+            resetLabel={t('payments.filterAllProviders')}
+          />
         </div>
         {/* Values are UTC-midnight ISO strings (toIso): slice the date part instead of parsing, which
             would shift the day in negative-offset timezones. */}

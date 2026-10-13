@@ -3,25 +3,17 @@ import { IconLoader2 } from '@tabler/icons-react';
 import type { FormEventHandler } from 'react';
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { Combobox } from '@/components/Combobox';
 import { DateField } from '@/components/DateField';
+import { ProviderCombobox } from '@/components/ProviderCombobox';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { trimMoney } from '@/utils/format';
 import { AccountSelect, accountsOf, impliedAccount } from '../services/AccountSelect';
 import type { PForm } from './paymentForm';
-
-// Radix Select forbids value="" — sentinel for the "no service" item.
-const NONE = 'none';
 
 interface Option {
   value: string;
@@ -72,30 +64,19 @@ export function PaymentFormModal({
               name="providerUuid"
               rules={{ validate: (v) => (v ? true : t('validation.selectProvider')) }}
               render={({ field }) => (
-                <Select
+                <ProviderCombobox
+                  id="payment-provider"
+                  providers={providers}
                   value={field.value}
-                  onValueChange={(v) => {
+                  onChange={(v) => {
                     field.onChange(v);
                     setValue('accountUuid', impliedAccount(accountsOf(providers, v)));
                     // A service picked under the previous provider no longer fits.
                     setValue('serviceUuid', '');
                   }}
-                >
-                  <SelectTrigger
-                    id="payment-provider"
-                    className="w-full"
-                    aria-invalid={!!errors.providerUuid}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(providers ?? []).map((p) => (
-                      <SelectItem key={p.uuid} value={p.uuid}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder={t('validation.selectProvider')}
+                  invalid={!!errors.providerUuid}
+                />
               )}
             />
             {errors.providerUuid && (
@@ -133,22 +114,12 @@ export function PaymentFormModal({
               control={control}
               name="serviceUuid"
               render={({ field }) => (
-                <Select
-                  value={field.value || NONE}
-                  onValueChange={(v) => field.onChange(v === NONE ? '' : v)}
-                >
-                  <SelectTrigger id="payment-service" className="w-full">
-                    <SelectValue placeholder={t('common.none')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>{t('common.none')}</SelectItem>
-                    {serviceOptions.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  id="payment-service"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={[{ value: '', label: t('common.none') }, ...serviceOptions]}
+                />
               )}
             />
           </div>
@@ -175,18 +146,12 @@ export function PaymentFormModal({
                 control={control}
                 name="currency"
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="payment-currency" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {currencyOptions.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>
-                          {o.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    id="payment-currency"
+                    value={field.value}
+                    onChange={field.onChange}
+                    options={currencyOptions}
+                  />
                 )}
               />
             </div>
