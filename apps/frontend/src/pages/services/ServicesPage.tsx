@@ -20,6 +20,7 @@ import {
 } from '@/api/services';
 import { useSettings } from '@/api/settings';
 import { PageHeader } from '@/components/PageHeader';
+import { ProviderIcon } from '@/components/ProviderIcon';
 import { ResetViewButton } from '@/components/ResetViewButton';
 import { Button } from '@/components/ui/button';
 import { useEnums } from '@/constants';
@@ -28,6 +29,7 @@ import { isStaleUuid, usePersistedState } from '@/hooks/usePersistedState';
 import { useSelectedParam } from '@/hooks/useSelectedParam';
 import { sortRows, useTableSort } from '@/hooks/useTableSort';
 import { useCountryOptions } from '@/utils/countries';
+import { projectFavicon } from '@/utils/favicon';
 import { trimMoney } from '@/utils/format';
 import { buildRubMap } from '@/utils/money';
 import { notifyError, notifySuccess } from '@/utils/notify';
@@ -115,7 +117,19 @@ export function ServicesPage() {
     const ref = accountOf(s.accountUuid);
     return ref ? accountDisplayName(ref.provider, ref.account, mainLabel) : null;
   };
-  const projectOptions = (projects ?? []).map((p) => ({ value: p.uuid, label: p.name }));
+  const projectOptions = (projects ?? []).map((p) => ({
+    value: p.uuid,
+    label: p.name,
+    icon: (
+      <ProviderIcon
+        name={p.name}
+        src={projectFavicon(p)}
+        iconName={p.iconName}
+        iconBg={p.iconBg}
+        size={16}
+      />
+    ),
+  }));
   const projectOf = (uuid: string) => projects?.find((p) => p.uuid === uuid);
   // Default a new service to the default project (or the first one).
   const defaultProjectUuid =
@@ -367,7 +381,7 @@ export function ServicesPage() {
             <ServicesFilterPopover
               filter={filter}
               setFilter={setFilter}
-              providerOptions={providerOptions}
+              providers={providers}
               projectOptions={projectOptions}
               typeOptions={typeOptions}
             />

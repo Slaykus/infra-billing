@@ -1,17 +1,6 @@
-import { IconCheck, IconChevronDown, IconMapPin } from '@tabler/icons-react';
-import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
+import { IconMapPin } from '@tabler/icons-react';
+import { Combobox } from '@/components/Combobox';
 import { CountryFlag } from '@/components/CountryFlag';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
 
 interface CountryComboboxProps {
   /** ISO2 code, or '' when unset. */
@@ -23,7 +12,7 @@ interface CountryComboboxProps {
   id?: string;
 }
 
-/** Searchable country picker (Popover + Command). The trigger mimics SelectTrigger styling. */
+/** Country picker: flag and localized name, searchable by name or ISO code. */
 export function CountryCombobox({
   value,
   onChange,
@@ -31,65 +20,23 @@ export function CountryCombobox({
   placeholder,
   id,
 }: CountryComboboxProps) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const selected = options.find((o) => o.value === value);
-
-  const pick = (v: string) => {
-    onChange(v);
-    setOpen(false);
-  };
-
   return (
-    // modal: without it a parent dialog's scroll lock swallows wheel events over the list.
-    <Popover open={open} onOpenChange={setOpen} modal>
-      <PopoverTrigger asChild>
-        <button
-          id={id}
-          type="button"
-          role="combobox"
-          aria-expanded={open}
-          className="flex h-9 w-full items-center justify-between gap-2 rounded-md border border-transparent bg-field px-3 py-2 text-sm transition-[color,box-shadow,border-color] outline-none focus-visible:border-ring/40 focus-visible:ring-3 focus-visible:ring-ring/15"
-        >
-          <span className="flex min-w-0 items-center gap-2">
-            {selected ? (
-              <CountryFlag code={selected.value} />
-            ) : (
-              <IconMapPin className="size-4 shrink-0 text-ink-3" />
-            )}
-            <span className={cn('truncate', !selected && 'text-muted-foreground')}>
-              {selected?.label ?? placeholder}
-            </span>
-          </span>
-          <IconChevronDown className="size-4 shrink-0 text-ink-3" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
-        <Command>
-          <CommandInput placeholder={t('common.searchPlaceholder')} />
-          <CommandList>
-            <CommandEmpty>{t('common.nothingFound')}</CommandEmpty>
-            <CommandGroup>
-              {/* value="-" never matches a real search, so the clear item hides while typing. */}
-              <CommandItem value="-" className="text-ink-2" onSelect={() => pick('')}>
-                {placeholder}
-              </CommandItem>
-              {options.map((o) => (
-                <CommandItem
-                  key={o.value}
-                  value={o.label}
-                  keywords={[o.value]}
-                  onSelect={() => pick(o.value)}
-                >
-                  <CountryFlag code={o.value} />
-                  <span className="truncate">{o.label}</span>
-                  {o.value === value && <IconCheck className="ml-auto size-4 text-ink-2" />}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <Combobox
+      id={id}
+      value={value}
+      onChange={onChange}
+      options={[
+        {
+          value: '',
+          label: placeholder,
+          icon: <IconMapPin className="size-4 shrink-0 text-ink-3" />,
+        },
+        ...options.map((o) => ({
+          ...o,
+          icon: <CountryFlag code={o.value} />,
+          keywords: [o.value],
+        })),
+      ]}
+    />
   );
 }

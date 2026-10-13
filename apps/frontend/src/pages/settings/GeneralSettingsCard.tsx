@@ -5,17 +5,11 @@ import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { apiErrorMessage } from '@/api/client';
 import { useSettings, useUpdateSettings } from '@/api/settings';
+import { Combobox } from '@/components/Combobox';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { CURRENCY_OPTIONS, useEnums } from '@/constants';
 import { notifyError, notifySuccess } from '@/utils/notify';
 
@@ -77,18 +71,12 @@ export function GeneralSettingsCard() {
               control={control}
               name="baseCurrency"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="settings-base-currency" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CURRENCY_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  id="settings-base-currency"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={CURRENCY_OPTIONS}
+                />
               )}
             />
           </div>
@@ -111,18 +99,12 @@ export function GeneralSettingsCard() {
               control={control}
               name="rateSource"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="settings-rate-source" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {rateSourceOptions.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  id="settings-rate-source"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={rateSourceOptions}
+                />
               )}
             />
           </div>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiErrorMessage } from '@/api/client';
 import { useMergeProvider } from '@/api/providers';
+import { ProviderCombobox } from '@/components/ProviderCombobox';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,13 +15,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { notifyError, notifySuccess } from '@/utils/notify';
 
 interface MergeProviderDialogProps {
@@ -95,18 +89,13 @@ function MergeForm({
         <div className="space-y-2">
           <Label htmlFor="merge-target">{t('providers.merge.target')}</Label>
           {targets.length > 0 ? (
-            <Select value={targetUuid} onValueChange={setTargetUuid}>
-              <SelectTrigger id="merge-target" className="w-full">
-                <SelectValue placeholder={t('providers.merge.targetPlaceholder')} />
-              </SelectTrigger>
-              <SelectContent>
-                {targets.map((p) => (
-                  <SelectItem key={p.uuid} value={p.uuid}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ProviderCombobox
+              id="merge-target"
+              providers={targets}
+              value={targetUuid}
+              onChange={setTargetUuid}
+              placeholder={t('providers.merge.targetPlaceholder')}
+            />
           ) : (
             <p className="text-ink-2">
               {t('providers.merge.noTargets', { kind: kindLabel(source.kind) })}

@@ -1,13 +1,7 @@
 import type { Provider, ProviderAccount } from '@infra/shared';
 import { useTranslation } from 'react-i18next';
+import { Combobox } from '@/components/Combobox';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 export const accountsOf = (providers: Provider[] | undefined, providerUuid: string) =>
   providers?.find((p) => p.uuid === providerUuid)?.accounts ?? [];
@@ -45,18 +39,18 @@ export function AccountSelect({
   return (
     <div className={className}>
       <Label htmlFor={id}>{label}</Label>
-      <Select value={value} onValueChange={onChange} disabled={disabled}>
-        <SelectTrigger id={id} className="w-full" aria-invalid={!!error}>
-          <SelectValue placeholder={t('validation.selectAccount')} />
-        </SelectTrigger>
-        <SelectContent>
-          {accounts.map((a) => (
-            <SelectItem key={a.uuid} value={a.uuid}>
-              {a.label ?? t('common.accountMain')}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <Combobox
+        id={id}
+        value={value}
+        onChange={onChange}
+        options={accounts.map((a) => ({
+          value: a.uuid,
+          label: a.label ?? t('common.accountMain'),
+        }))}
+        placeholder={t('validation.selectAccount')}
+        disabled={disabled}
+        invalid={!!error}
+      />
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
