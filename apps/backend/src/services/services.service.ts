@@ -149,7 +149,11 @@ export class ServicesService {
     if (dto.nextBillingAt !== undefined) {
       data.nextBillingAt = dto.nextBillingAt ? new Date(dto.nextBillingAt) : null;
     }
-    if (dto.isActive !== undefined) data.isActive = dto.isActive;
+    if (dto.isActive !== undefined) {
+      data.isActive = dto.isActive;
+      // Switching off pins the service against sync; switching on hands it back to sync.
+      data.activeOverridden = !dto.isActive;
+    }
     if (dto.projectUuid !== undefined) {
       await this.ensureProject(dto.projectUuid);
       data.projectUuid = dto.projectUuid;

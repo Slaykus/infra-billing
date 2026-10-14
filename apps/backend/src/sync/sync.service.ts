@@ -325,10 +325,9 @@ export class SyncService implements OnModuleInit {
           meta,
         });
       } else {
-        const data: Prisma.ServiceUncheckedUpdateInput = {
-          isActive: true,
-          meta,
-        };
+        const data: Prisma.ServiceUncheckedUpdateInput = { meta };
+        // Don't switch back on a service the owner switched off.
+        if (!existing.activeOverridden) data.isActive = true;
         // Don't overwrite a manually-edited name.
         if (!existing.nameOverridden) data.name = sd.name;
         // Don't overwrite a manually-edited type.
