@@ -60,10 +60,10 @@ export function ServiceMarkerPreview({
     const Icon = entry.Icon;
     const color = markerBg || DEFAULT_ICON_BG;
     const glyph = Math.max(12, Math.round(size * 0.9));
-    // The stored colour survives as a gray tone, like every other icon in the app.
+    // Tinted like every other icon: in mono the stored colour survives as a gray tone.
     return (
       <span
-        className="inline-flex shrink-0 items-center justify-center self-center grayscale"
+        className="inline-flex shrink-0 items-center justify-center self-center icon-tint"
         style={{ width: size, height: size }}
       >
         <Icon size={glyph} stroke={1.75} color={color} className="block" aria-hidden />
@@ -73,7 +73,7 @@ export function ServiceMarkerPreview({
   if (marker) {
     return (
       <span
-        className="inline-flex shrink-0 items-center justify-center self-center leading-none grayscale"
+        className="inline-flex shrink-0 items-center justify-center self-center leading-none icon-tint"
         style={{ width: size, height: size, fontSize: Math.round(size * 0.85) }}
       >
         {marker}
@@ -136,7 +136,7 @@ export function ServiceMarkerField({
             <button
               type="button"
               aria-label={t('common.iconBg')}
-              className="size-9 shrink-0 rounded-md border border-foreground/10 outline-none grayscale focus-visible:border-ring/40 focus-visible:ring-3 focus-visible:ring-ring/15"
+              className="size-9 shrink-0 rounded-md border border-foreground/10 outline-none icon-tint focus-visible:border-ring/40 focus-visible:ring-3 focus-visible:ring-ring/15"
               style={{ backgroundColor: color }}
             />
           </PopoverTrigger>
@@ -148,7 +148,7 @@ export function ServiceMarkerField({
                   type="button"
                   aria-label={swatch}
                   className={cn(
-                    'aspect-square w-full rounded-sm border border-foreground/10 grayscale transition-[outline]',
+                    'aspect-square w-full rounded-sm border border-foreground/10 icon-tint transition-[outline]',
                     color.toLowerCase() === swatch.toLowerCase() &&
                       'outline-2 outline-offset-2 outline-ring',
                   )}
@@ -222,7 +222,7 @@ export function ServiceMarkerField({
                     value={`emoji:${searchEmoji}`}
                     onSelect={() => pickEmoji(searchEmoji)}
                   >
-                    <span className="text-base leading-none grayscale">{searchEmoji}</span>
+                    <span className="text-base leading-none icon-tint">{searchEmoji}</span>
                     <span className="truncate">{t('services.markerUseEmoji')}</span>
                   </CommandItem>
                 ) : null}

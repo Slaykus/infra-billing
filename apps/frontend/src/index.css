@@ -191,6 +191,18 @@
   animation: ink-pulse 1.6s ease-in-out infinite;
 }
 
+/* Brand imagery (favicons, icon tiles, markers, swatches) follows the viewer's choice on <html>:
+ * gray by default, muted toward the stone palette, or as drawn. Country flags opt out. */
+@utility icon-tint {
+  filter: grayscale(1);
+  :root[data-icon-colors='warm'] & {
+    filter: saturate(0.55) sepia(0.12);
+  }
+  :root[data-icon-colors='color'] & {
+    filter: none;
+  }
+}
+
 /* Radix Collapsible has no built-in height animation — without these the sections snap. */
 @keyframes collapsible-down {
   from {

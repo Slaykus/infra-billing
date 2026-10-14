@@ -10,9 +10,9 @@ export function countryFlag(code: string | null | undefined): string {
 }
 
 /**
- * A country as its flag emoji, in colour, with the localized name as the tooltip. Flags are the
- * one deliberate exception to the grayscale imagery: in gray they turn into indistinguishable
- * stripes. (On Windows the emoji come from the flag polyfill font, see main.tsx.)
+ * A country as its flag emoji, in colour, with the localized name as the tooltip. Flags skip the
+ * icon-tint mode every other image follows: in gray they turn into indistinguishable stripes.
+ * (On Windows the emoji come from the flag polyfill font, see main.tsx.)
  */
 export function CountryFlag({
   code,

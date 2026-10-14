@@ -131,8 +131,8 @@ export function IconAppearanceFields({
       {storedName ? (
         <div className="space-y-2">
           <Label>{t('common.iconBg')}</Label>
-          {/* Swatches render in grayscale like every icon: the stored colour still reads as a
-              distinct gray tone. */}
+          {/* Swatches are tinted like the icon itself, so in mono the stored colour shows as the
+              gray tone it will become. */}
           <div className="flex flex-wrap items-center gap-2">
             {ICON_BG_SWATCHES.map((swatch) => (
               <button
@@ -140,7 +140,7 @@ export function IconAppearanceFields({
                 type="button"
                 aria-label={swatch}
                 className={cn(
-                  'size-7 rounded-md ring-1 ring-foreground/10 ring-inset grayscale transition-[outline]',
+                  'size-7 rounded-md ring-1 ring-foreground/10 ring-inset icon-tint transition-[outline]',
                   bg.toLowerCase() === swatch.toLowerCase() &&
                     'outline-2 outline-offset-2 outline-foreground',
                 )}
