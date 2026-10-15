@@ -10,14 +10,19 @@ import {
 } from 'react';
 
 export type ColorScheme = 'light' | 'dark' | 'auto';
+/** How brand imagery is tinted (the `icon-tint` utility in index.css). */
+export type IconColors = 'mono' | 'warm' | 'color';
 
 const STORAGE_KEY = 'color-scheme';
+const ICON_COLORS_KEY = 'icon-colors';
 
 interface ThemeContextValue {
   scheme: ColorScheme;
   /** 'auto' resolved to the effective scheme via prefers-color-scheme. */
   resolved: 'light' | 'dark';
   setScheme: (scheme: ColorScheme) => void;
+  iconColors: IconColors;
+  setIconColors: (mode: IconColors) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -31,6 +36,11 @@ function readStored(): ColorScheme {
   return v === 'light' || v === 'dark' || v === 'auto' ? v : 'auto';
 }
 
+function readIconColors(): IconColors {
+  const v = localStorage.getItem(ICON_COLORS_KEY);
+  return v === 'warm' || v === 'color' ? v : 'mono';
+}
+
 /** Toggles .dark on <html> synchronously — matters for View Transitions (see ThemeToggle). */
 function applyScheme(resolved: 'light' | 'dark') {
   document.documentElement.classList.toggle('dark', resolved === 'dark');
@@ -41,6 +51,7 @@ function applyScheme(resolved: 'light' | 'dark') {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [scheme, setSchemeState] = useState<ColorScheme>(readStored);
   const [system, setSystem] = useState<'light' | 'dark'>(systemScheme);
+  const [iconColors, setIconColorsState] = useState<IconColors>(readIconColors);
 
   const resolved = scheme === 'auto' ? system : scheme;
 
@@ -48,6 +59,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // startViewTransition swaps the class before the new frame is snapshotted, and on
   // first render the class lands before paint (no flash of the light theme).
   useLayoutEffect(() => applyScheme(resolved), [resolved]);
+  // No attribute reads as mono in CSS, so the default needs no pre-paint script.
+  useLayoutEffect(() => {
+    document.documentElement.dataset.iconColors = iconColors;
+  }, [iconColors]);
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
@@ -61,7 +76,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setSchemeState(next);
   }, []);
 
-  const value = useMemo(() => ({ scheme, resolved, setScheme }), [scheme, resolved, setScheme]);
+  const setIconColors = useCallback((next: IconColors) => {
+    localStorage.setItem(ICON_COLORS_KEY, next);
+    setIconColorsState(next);
+  }, []);
+
+  const value = useMemo(
+    () => ({ scheme, resolved, setScheme, iconColors, setIconColors }),
+    [scheme, resolved, setScheme, iconColors, setIconColors],
+  );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

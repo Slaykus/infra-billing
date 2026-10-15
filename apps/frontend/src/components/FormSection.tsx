@@ -7,7 +7,7 @@ interface FormSectionProps {
   icon: Icon;
   title: string;
   children: ReactNode;
-  /** When set, paints the icon tile with this background (in grayscale) instead of the soft fill. */
+  /** When set, paints the icon tile with this background (tinted) instead of the soft fill. */
   iconBg?: string | null;
 }
 
@@ -30,7 +30,7 @@ export function FormSection({ icon: IconCmp, title, children, iconBg }: FormSect
           className={cn(
             'flex size-7 shrink-0 items-center justify-center rounded-md',
             !custom && 'bg-background text-ink-2',
-            custom && 'ring-1 ring-foreground/10 ring-inset grayscale',
+            custom && 'ring-1 ring-foreground/10 ring-inset icon-tint',
           )}
           style={style}
         >

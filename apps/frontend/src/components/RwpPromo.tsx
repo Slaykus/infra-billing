@@ -43,7 +43,7 @@ export function RwpPromo() {
         <div className="flex items-center gap-3 border-b border-hairline p-4">
           {/* The RWP mark is drawn for a dark backdrop, so it always sits on an ink tile. */}
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#141310]">
-            <img src={rwpLogo} alt="RWP" className="size-7 grayscale" />
+            <img src={rwpLogo} alt="RWP" className="size-7 icon-tint" />
           </div>
           <div className="flex items-center gap-2 text-[15px] font-medium">
             {t('app.rwp.title')}

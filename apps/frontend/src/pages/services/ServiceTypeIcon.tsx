@@ -27,11 +27,11 @@ const TYPE_ICONS: Record<string, Icon> = {
   other: IconBox,
 };
 
-// Every lead icon renders in grayscale: vendor logos and emoji keep their shape, not their colour.
+// Lead icons follow the icon-colors mode: in mono, vendor logos and emoji keep only their shape.
 function IconSlot({ size, children }: { size: number; children: ReactNode }) {
   return (
     <span
-      className="inline-flex shrink-0 items-center justify-center self-center grayscale"
+      className="inline-flex shrink-0 items-center justify-center self-center icon-tint"
       style={{ width: size, height: size }}
     >
       {children}

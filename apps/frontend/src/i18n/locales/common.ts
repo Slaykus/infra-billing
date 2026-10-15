@@ -54,6 +54,12 @@ export const common = {
       dark: 'Dark theme',
       light: 'Light theme',
     },
+    iconColors: {
+      label: 'Icon colors',
+      mono: 'Monochrome',
+      warm: 'Warm',
+      color: 'Full color',
+    },
     shell: {
       search: 'Search…',
       breadcrumb: 'Breadcrumb',
@@ -274,6 +280,12 @@ export const common = {
     theme: {
       dark: 'Тёмная тема',
       light: 'Светлая тема',
+    },
+    iconColors: {
+      label: 'Цвет иконок',
+      mono: 'Монохром',
+      warm: 'Тёплые',
+      color: 'Цветные',
     },
     shell: {
       search: 'Поиск…',

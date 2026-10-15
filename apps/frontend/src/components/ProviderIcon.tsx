@@ -9,8 +9,8 @@ import { type IconTone, analyzeIconTone, toneOf } from '@/utils/iconTone';
 // float on the row. The one exception is contrast rescue, decided from the icon's own
 // luminance via data-tone + theme variants (no theme subscription in JS): a white glyph gets a
 // dark plate in the light theme, a black glyph a light plate in the dark one. Only the letter
-// placeholder keeps a tile. A custom Tabler icon + bg overrides all of this. Every image renders
-// in grayscale: the stored colours still read as distinct grays.
+// placeholder keeps a tile. A custom Tabler icon + bg overrides all of this. Every image is tinted
+// by the viewer's icon-colors mode (icon-tint); in mono the stored colours read as distinct grays.
 
 interface Resolved {
   key: string;
@@ -64,7 +64,7 @@ export function ProviderIcon({
     const glyph = Math.max(12, Math.round(size * 0.64));
     return (
       <div
-        className="flex shrink-0 items-center justify-center ring-1 ring-foreground/10 ring-inset grayscale select-none"
+        className="flex shrink-0 items-center justify-center ring-1 ring-foreground/10 ring-inset icon-tint select-none"
         style={{ width: size, height: size, borderRadius: radius, backgroundColor: bg, color: fg }}
       >
         {createElement(TablerIcon, {
@@ -83,7 +83,7 @@ export function ProviderIcon({
     <div
       data-tone={toneOf(tone) ?? undefined}
       className={cn(
-        'flex shrink-0 items-center justify-center overflow-hidden grayscale select-none',
+        'flex shrink-0 items-center justify-center overflow-hidden icon-tint select-none',
         favicon
           ? 'data-[tone=light]:bg-foreground dark:data-[tone=light]:bg-transparent dark:data-[tone=dark]:bg-foreground'
           : 'bg-secondary',

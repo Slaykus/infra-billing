@@ -5,6 +5,7 @@ import { Outlet } from 'react-router-dom';
 import { BrandWordmark } from '@/components/BrandWordmark';
 import { CommandPalette } from '@/components/CommandPalette';
 import { Kbd } from '@/components/ink/Kbd';
+import { IconColorsSwitcher } from '@/components/IconColorsSwitcher';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { RwpPromo } from '@/components/RwpPromo';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -116,7 +117,10 @@ export function AppLayout() {
             </div>
             <div className="flex items-center justify-between gap-1 border-t border-hairline pt-3">
               <ThemeToggle withLabel />
-              <LanguageSwitcher />
+              <div className="flex items-center gap-1">
+                <IconColorsSwitcher />
+                <LanguageSwitcher />
+              </div>
             </div>
           </SidebarFooter>
         </Sidebar>
