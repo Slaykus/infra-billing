@@ -8,11 +8,14 @@ import {
   HOSTBILL_FALLBACK_CURRENCY,
   invoiceToPayment,
   isActiveHostbillService,
+  isPaidInvoice,
   mapHostbillService,
 } from './hostbill.mapper';
 import {
   BalanceResponse,
   HostbillCredentials,
+  HostbillInvoiceDetail,
+  InvoiceDetailResponse,
   InvoicesResponse,
   LoginResponse,
   ServicesResponse,
@@ -25,6 +28,10 @@ const TWO_FACTOR_MESSAGE =
 const TOTP_FAILED_MESSAGE =
   'HostBill: the 2FA code was rejected — check the TOTP secret and the server clock.';
 
+// Invoice details are one request each; a few at a time keeps a long history inside the sync
+// budget without hammering the hoster's API.
+const DETAIL_CONCURRENCY = 5;
+
 /**
  * HostBill User API connector (https://hostbill.atlassian.net/wiki/...). Each install
  * lives on its own domain and the API base path varies (e.g. /api), so the base URL is
@@ -35,7 +42,8 @@ const TOTP_FAILED_MESSAGE =
  * 2FA: on installs with the MFA verify routes (User API, 2026-08+) /login returns token=null
  * plus an mfa challenge; for authenticator-app (TOTP) 2FA we solve it via POST /mfa/verify with
  * a generated code (needs the base32 secret). Balance: GET /balance (acc_credit). Services:
- * GET /service. Billing is per-cycle.
+ * GET /service. Billing is per-cycle. Payments: paid invoices from GET /invoice, each checked
+ * against GET /invoice/{id} for the part paid from the account balance.
  */
 export class HostbillConnector implements Connector {
   private readonly http: AxiosInstance;
@@ -176,18 +184,48 @@ export class HostbillConnector implements Connector {
   }
 
   /**
-   * HostBill exposes invoices (bills) but no per-service expense breakdown and no transaction
-   * ledger (its /payment endpoint only lists gateway names). We import PAID invoices as payments
-   * (type=topup, dated by datepaid → counted in totalSpent). Unpaid invoices aren't payment facts.
+   * HostBill exposes invoices (bills) but no transaction ledger (its /payment endpoint only lists
+   * gateway names). We import PAID invoices as payments (type=topup, dated by datepaid → counted
+   * in totalSpent) for the amount actually paid in: an invoice settled from the account balance
+   * would count the same money twice, once more after the add-funds invoice. The list shows only
+   * the gross total, so the applied credit comes from each invoice's detail.
    */
   async fetchPayments(signal: AbortSignal): Promise<PaymentData[]> {
     const headers = await this.authHeaders(signal);
     const { data } = await this.http.get<InvoicesResponse>('invoice', { headers, signal });
+    const paid = (data?.invoices ?? []).filter(isPaidInvoice);
     const out: PaymentData[] = [];
-    for (const inv of data?.invoices ?? []) {
-      const payment = invoiceToPayment(inv);
-      if (payment) out.push(payment);
+    for (let i = 0; i < paid.length; i += DETAIL_CONCURRENCY) {
+      const batch = paid.slice(i, i + DETAIL_CONCURRENCY);
+      const details = await Promise.all(
+        batch.map((inv) => this.invoiceDetail(inv.id, headers, signal)),
+      );
+      batch.forEach((inv, j) => {
+        const payment = invoiceToPayment(inv, details[j]);
+        if (payment) out.push(payment);
+      });
     }
     return out;
+  }
+
+  /** GET /invoice/{id}; undefined when this install has no such route. */
+  private async invoiceDetail(
+    id: number | string,
+    headers: Record<string, string>,
+    signal: AbortSignal,
+  ): Promise<HostbillInvoiceDetail | undefined> {
+    try {
+      const { data } = await this.http.get<InvoiceDetailResponse>(
+        `invoice/${encodeURIComponent(String(id))}`,
+        { headers, signal },
+      );
+      return data?.invoice;
+    } catch (e) {
+      // HostBill answers an unknown route with 404 "invalid method": import from the list there.
+      // Anything else fails the import for this sync. Falling back would store a balance-paid
+      // invoice as a top-up, and re-syncs never remove an imported row.
+      if (axios.isAxiosError(e) && e.response?.status === 404) return undefined;
+      throw e;
+    }
   }
 }

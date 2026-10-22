@@ -54,3 +54,15 @@ export interface HostbillInvoice {
 export interface InvoicesResponse {
   invoices?: HostbillInvoice[];
 }
+
+// GET /invoice/{id}. The list's total is the gross amount; here total is what was actually paid
+// in after the account credit (balance) applied to the invoice, which is reported in credit.
+export interface HostbillInvoiceDetail {
+  total?: number | string;
+  credit?: number | string;
+  [key: string]: unknown;
+}
+
+export interface InvoiceDetailResponse {
+  invoice?: HostbillInvoiceDetail;
+}

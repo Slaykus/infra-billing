@@ -1,7 +1,7 @@
 import Decimal from 'decimal.js';
 import { normalizeCurrency } from '../common/currency';
 import { PaymentData, ServiceData } from '../connector.interface';
-import { HostbillInvoice, HostbillService } from './hostbill.types';
+import { HostbillInvoice, HostbillInvoiceDetail, HostbillService } from './hostbill.types';
 
 /** HostBill defaults to USD when the currency label isn't recognized (used by the connector too). */
 export const HOSTBILL_FALLBACK_CURRENCY = 'USD';
@@ -58,19 +58,30 @@ export function mapHostbillService(s: HostbillService): ServiceData {
   };
 }
 
+export function isPaidInvoice(inv: HostbillInvoice): boolean {
+  return (inv.status ?? '').toLowerCase() === 'paid';
+}
+
 /**
  * Map a PAID HostBill invoice to a payment (type=topup, dated by datepaid). Returns null for
- * unpaid invoices or ones without a usable date. They aren't payment facts. HostBill exposes no
- * per-service breakdown, so payments stay provider-level (no serviceExternalId).
+ * unpaid invoices or ones without a usable date. They aren't payment facts. The amount is what
+ * was actually paid in (`detail.total`), so an invoice settled from the account balance is
+ * skipped: that money was already counted by the invoice that topped the balance up. Without a
+ * detail the list's gross total is used. Payments stay provider-level (no serviceExternalId).
  */
-export function invoiceToPayment(inv: HostbillInvoice): PaymentData | null {
-  if ((inv.status ?? '').toLowerCase() !== 'paid') return null;
+export function invoiceToPayment(
+  inv: HostbillInvoice,
+  detail?: HostbillInvoiceDetail,
+): PaymentData | null {
+  if (!isPaidInvoice(inv)) return null;
   const date = parseInvoiceDate(inv.datepaid) ?? parseInvoiceDate(inv.date);
   if (!date) return null;
+  const amount = new Decimal(String(detail?.total ?? inv.total ?? inv.subtotal ?? 0));
+  if (amount.lte(0) && new Decimal(String(detail?.credit ?? 0)).gt(0)) return null;
   return {
     externalId: `invoice:${inv.id}`,
     type: 'topup',
-    amount: new Decimal(inv.total ?? inv.subtotal ?? 0),
+    amount,
     currency: normalizeCurrency(inv.currency, HOSTBILL_FALLBACK_CURRENCY),
     date,
     description: `Invoice ${inv.number ?? inv.id}`,

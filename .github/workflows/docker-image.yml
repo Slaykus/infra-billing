@@ -24,6 +24,11 @@ on:
 env:
   GHCR_IMAGE: ghcr.io/${{ github.repository }}
   DOCKERHUB_IMAGE: docker.io/${{ vars.DOCKERHUB_IMAGE || github.repository }}
+  # GHCR reads a multi-arch image's description from the index annotations, not the image label.
+  # Keep in sync with the Dockerfile label.
+  IMAGE_DESCRIPTION: >-
+    Self-hosted panel for tracking infrastructure costs: syncs balances, servers and billing dates
+    from hosting provider APIs
 
 jobs:
   build:
@@ -131,7 +136,9 @@ jobs:
             args=()
             for tag in $TAGS; do args+=(-t "$image:$tag"); done
             for digest in *; do args+=("$image@sha256:$digest"); done
-            docker buildx imagetools create "${args[@]}"
+            docker buildx imagetools create \
+              --annotation "index:org.opencontainers.image.description=$IMAGE_DESCRIPTION" \
+              "${args[@]}"
           done
 
       - name: Inspect images
