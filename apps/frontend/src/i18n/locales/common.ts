@@ -40,15 +40,6 @@ export const common = {
       starOnGithub: 'Star on GitHub',
       github: 'GitHub',
       apiDocs: 'API docs',
-      rwp: {
-        title: 'RWP Shop',
-        description:
-          'The best all-in-one bot for VPN commerce: client cabinet, payments, subscriptions, support, referral program and analytics. Works in the browser and as a Telegram Mini App. Integrates with Infra Billing.',
-        promo: '15% off with promo code',
-        copy: 'Copy promo code',
-        copied: 'Promo code copied!',
-        open: 'Open rwp.rw',
-      },
     },
     theme: {
       dark: 'Dark theme',
@@ -268,15 +259,6 @@ export const common = {
       starOnGithub: 'Звезда на GitHub',
       github: 'GitHub',
       apiDocs: 'Документация API',
-      rwp: {
-        title: 'RWP Shop',
-        description:
-          'Лучший многофункциональный бот для VPN-коммерции: личный кабинет клиента, платежи, подписки, поддержка, партнёрская программа и аналитика. Работает в браузере и как Mini App в Telegram. Интегрируется с Infra Billing.',
-        promo: 'Скидка 15% по промокоду',
-        copy: 'Скопировать промокод',
-        copied: 'Промокод скопирован!',
-        open: 'Открыть rwp.rw',
-      },
     },
     theme: {
       dark: 'Тёмная тема',

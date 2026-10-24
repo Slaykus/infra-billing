@@ -3,11 +3,11 @@ import axios from 'axios';
 
 // Public GitHub REST calls go through plain axios on purpose: the shared `api` instance has a
 // 401 → /login interceptor, and a GitHub auth/rate-limit error must not bounce the app to login.
-export const GITHUB_REPO = 'mishkatik/infra-billing';
+export const GITHUB_REPO = 'Slaykus/infra-billing';
 export const GITHUB_REPO_URL = `https://github.com/${GITHUB_REPO}`;
 export const GITHUB_RELEASES_URL = `${GITHUB_REPO_URL}/releases`;
-// Development images (":dev") are built from this branch.
-export const GITHUB_DEV_BRANCH_URL = `${GITHUB_REPO_URL}/tree/dev`;
+// Untagged ("dev") builds come from the fork's main branch.
+export const GITHUB_DEV_BRANCH_URL = `${GITHUB_REPO_URL}/tree/main`;
 // Release tags are bare semver without a "v" prefix, so the version maps to the tag as is.
 export const githubReleaseUrl = (version: string) => `${GITHUB_RELEASES_URL}/tag/${version}`;
 export const githubCommitUrl = (sha: string) => `${GITHUB_REPO_URL}/commit/${sha}`;

@@ -35,15 +35,6 @@
   шифруются AES-256-GCM. В списке и карточке провайдера секретов нет — только признак «задан»;
   показать их в открытом виде можно лишь по «глазику» в форме, из сессии владельца.
 
-## RWP Shop
-
-[<img src="apps/frontend/src/assets/rwp-logo.svg" width="56" align="left" alt="RWP Shop">](https://rwp.rw)
-
-[**RWP Shop**](https://rwp.rw) — лучший многофункциональный бот для VPN-коммерции на Remnawave:
-личный кабинет клиента, платежи, подписки, поддержка, партнёрская программа и аналитика. Работает
-в браузере и как Mini App в Telegram. Есть интеграция с Infra Billing.
-**Скидка 15%** по промокоду **`MISH`**.
-
 ## Стек
 
 - **Backend:** NestJS 11 (Node 22) · Prisma 7 · PostgreSQL 18 · zod (`nestjs-zod`) · axios · grammY
@@ -64,8 +55,8 @@
 mkdir -p /opt/infra-billing && cd /opt/infra-billing
 
 # 2. Скачать prod-compose и пример конфига в .env
-curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/mishkatik/infra-billing/main/docker-compose-prod.yml
-curl -fsSL -o .env https://raw.githubusercontent.com/mishkatik/infra-billing/main/.env.example
+curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/Slaykus/infra-billing/main/docker-compose-prod.yml
+curl -fsSL -o .env https://raw.githubusercontent.com/Slaykus/infra-billing/main/.env.example
 
 # 3. Сгенерировать ключ шифрования (GNU sed; разделитель # — т.к. base64 содержит /)
 sed -i "s#^ENCRYPTION_KEY=.*#ENCRYPTION_KEY=$(openssl rand -base64 32)#" .env
@@ -158,7 +149,7 @@ PostgreSQL 17 — достаточно не трогать свой `docker-comp
 docker compose exec -T infra-billing-db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > infra_billing-pg17.dump
 
 # 2. Скачать новый compose (в нём уже postgres:18 и новый путь тома)
-curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/mishkatik/infra-billing/main/docker-compose-prod.yml
+curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/Slaykus/infra-billing/main/docker-compose-prod.yml
 
 # 3. Временно поставить у сервиса infra-billing-db образ pgautoupgrade и прогнать апгрейд
 sed -i 's#image: postgres:18.*#image: pgautoupgrade/pgautoupgrade:18.6-trixie#' docker-compose.yml

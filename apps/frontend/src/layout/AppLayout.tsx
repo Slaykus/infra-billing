@@ -7,7 +7,6 @@ import { CommandPalette } from '@/components/CommandPalette';
 import { Kbd } from '@/components/ink/Kbd';
 import { IconColorsSwitcher } from '@/components/IconColorsSwitcher';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { RwpPromo } from '@/components/RwpPromo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import {
   Sidebar,
@@ -111,7 +110,6 @@ export function AppLayout() {
           </SidebarContent>
           <SidebarFooter className="gap-3 px-4 pt-3 pb-4">
             <PaidMeter />
-            <RwpPromo />
             <div className="border-t border-hairline pt-3">
               <FooterLinks />
             </div>
