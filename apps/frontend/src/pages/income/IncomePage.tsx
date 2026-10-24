@@ -134,7 +134,6 @@ export function IncomePage() {
     <div className="space-y-6">
       <PageHeader
         title={t('income.title')}
-        subtitle={t('income.subtitle')}
         actions={
           <>
             <Button variant="outline" onClick={doSync} disabled={sync.isPending}>
