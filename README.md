@@ -16,22 +16,22 @@
 ## Возможности
 
 - **Провайдеры с API:** Timeweb Cloud, Hetzner Cloud, Hostkey (InvAPI), netcup, HostBill,
-  ISPsystem BILLmanager, Selectel, 4VPS.SU, Netlen, Beget Cloud, Porkbun, Vultr, Linode, Aeza,
-  VDSina, Cloudflare, StormWall, Yandex Cloud, Double Servers. Плюс **Manual** — провайдеры без
-  API ведутся руками.
+  ISPsystem BILLmanager, Selectel, 4VPS.SU, Netlen, Beget Cloud, Porkbun, Spaceship, Vultr,
+  Linode, Aeza, VDSina, Cloudflare, StormWall, Yandex Cloud, Double Servers, OpenRouter. Плюс
+  **Manual** — провайдеры без API ведутся руками.
 - **Автосинк** (по расписанию + кнопкой): баланс + валюта аккаунта, список серверов/услуг, даты
   следующих списаний; история баланса по дням (снапшоты).
 - **Импорт платежей** там, где API отдаёт реестр: пополнения и списания (BILLmanager, Netlen,
   Vultr, Aeza, VDSina, Double Servers), пополнения и счета (Linode), оплаченные счета (HostBill),
-  потребление (Selectel, Yandex Cloud), история биллинга (Cloudflare, best-effort). Ручные
-  платежи — в журнале.
+  потребление (Selectel, Yandex Cloud, OpenRouter), история биллинга (Cloudflare, best-effort).
+  Ручные платежи — в журнале.
 - **Аналитика:** месячные/годовые расходы, разрезы по провайдеру / стране / типу / валюте, прогноз
   по будущим списаниям, ближайшие списания с подсветкой критичности.
 - **Мультивалютность:** суммы в своей валюте, конвертация к базовой; курсы ЦБ РФ или ручные.
 - **Telegram-уведомления** (только исходящие): низкий баланс, скорое списание, ошибка синка.
   Доставка напрямую или через SOCKS5-прокси, если Telegram с сервера недоступен.
-- **Безопасность:** аккаунт владельца создаётся при первом запуске; вход по **паролю и/или passkey**
-  (WebAuthn) — методы переключаются в настройках; сессия — JWT в httpOnly-cookie; токены провайдеров
+- **Безопасность:** аккаунт владельца создаётся при первом запуске; вход по **паролю, passkey**
+  (WebAuthn) **и/или Telegram** (OpenID Connect) — методы переключаются в настройках; сессия — JWT в httpOnly-cookie; токены провайдеров
   шифруются AES-256-GCM. В списке и карточке провайдера секретов нет — только признак «задан»;
   показать их в открытом виде можно лишь по «глазику» в форме, из сессии владельца.
 
@@ -46,8 +46,8 @@
 
 ## Стек
 
-- **Backend:** NestJS 11 (Node 22) · Prisma 7 · PostgreSQL 17 · zod (`nestjs-zod`) · axios · grammY
-- **Frontend:** Vite · React 19 · shadcn/ui · Tailwind CSS v4 · RemoCN (Remotion) · TanStack Query · axios
+- **Backend:** NestJS 11 (Node 22) · Prisma 7 · PostgreSQL 18 · zod (`nestjs-zod`) · axios · grammY
+- **Frontend:** Vite · React 19 · shadcn/ui · Tailwind CSS v4 · Golos Text · TanStack Query · axios
 - **Монорепо:** npm-workspaces — `apps/backend`, `apps/frontend`, `packages/shared` (общие zod-схемы)
 - **Деплой:** единый Docker-образ (бэкенд раздаёт API + собранный SPA) + отдельный Postgres
 
@@ -101,6 +101,17 @@ Caddy по умолчанию не ограничивает ожидание о�
 
 ### Обновление
 
+Миграции базы применяются при старте нового образа и назад не откатываются, поэтому перед обновлением
+сделайте дамп и запомните текущую версию (она рядом с названием «Infra Billing» в боковом меню):
+
+```bash
+cd /opt/infra-billing && mkdir -p backups
+docker compose exec -T infra-billing-db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > backups/infra_billing-$(date +%Y%m%d-%H%M).dump
+```
+
+Токены провайдеров в дампе зашифрованы ключом `ENCRYPTION_KEY` из `.env` — без него их не
+восстановить, поэтому храните `.env` вместе с дампами.
+
 Обновить и перезапустить:
 
 ```bash
@@ -111,6 +122,52 @@ cd /opt/infra-billing && docker compose pull && docker compose down && docker co
 
 ```bash
 docker image prune
+```
+
+#### Откат на прошлую версию
+
+Повторный `docker compose pull` не поможет: `:latest` уже указывает на новую версию, а прошлая может
+не запуститься на базе после новых миграций. Верните базу из дампа и закрепите прошлую версию образа:
+
+```bash
+cd /opt/infra-billing
+
+# 1. Остановить панель и пересоздать базу из дампа (подставьте имя своего файла из backups/)
+docker compose stop infra-billing
+docker compose exec -T infra-billing-db sh -c 'dropdb -U "$POSTGRES_USER" "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
+docker compose exec -T infra-billing-db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner' < backups/infra_billing-ГГГГММДД-ЧЧММ.dump
+
+# 2. Закрепить прошлую версию (например, 0.47.0) и поднять панель
+sed -i 's#image: ghcr.io/mishkatik/infra-billing:.*#image: ghcr.io/mishkatik/infra-billing:0.47.0#' docker-compose.yml
+docker compose up -d
+```
+
+Чтобы снова получать обновления, верните в `docker-compose.yml` тег `:latest`.
+
+#### PostgreSQL 17 → 18 (с 0.44.0, не обязательно, но рекомендуется)
+
+С 0.44.0 compose в репозитории использует `postgres:18` и монтирует том в `/var/lib/postgresql`
+(раньше — `/var/lib/postgresql/data`). **Переходить не обязательно**: приложение работает и с
+PostgreSQL 17 — достаточно не трогать свой `docker-compose.yml` и обновлять только образ панели
+(`docker compose pull`). Но обновиться рекомендуется, чтобы не отставать от поддерживаемых версий
+и от compose-файла в репозитории. Файлы 17-й версии новый сервер сам не подхватит — данные надо
+обновить на месте, это делает образ `pgautoupgrade`:
+
+```bash
+# 1. Дамп на всякий случай
+docker compose exec -T infra-billing-db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > infra_billing-pg17.dump
+
+# 2. Скачать новый compose (в нём уже postgres:18 и новый путь тома)
+curl -fsSL -o docker-compose.yml https://raw.githubusercontent.com/mishkatik/infra-billing/main/docker-compose-prod.yml
+
+# 3. Временно поставить у сервиса infra-billing-db образ pgautoupgrade и прогнать апгрейд
+sed -i 's#image: postgres:18.*#image: pgautoupgrade/pgautoupgrade:18.6-trixie#' docker-compose.yml
+docker compose down && docker compose up -d infra-billing-db && docker compose logs -f infra-billing-db
+#    (ждать «database system is ready to accept connections» после «End of reindexing»)
+
+# 4. Вернуть официальный образ и поднять всё
+sed -i 's#image: pgautoupgrade/pgautoupgrade:.*#image: postgres:18.6#' docker-compose.yml
+docker compose down && docker compose pull && docker compose up -d
 ```
 
 ---
@@ -124,19 +181,35 @@ docker image prune
 > после деплоя** и не открывайте панель в интернет до этого — иначе аккаунт может занять тот, кто
 > откроет её первым.
 
-Способы входа — **пароль** и/или **passkey** (WebAuthn: Touch ID / Windows Hello / аппаратный
-ключ). Это **альтернативы, а не второй фактор** — достаточно любого включённого. Управление —
-*Настройки → Вход в систему*: тумблеры «Пароль» / «Passkey», добавление и удаление passkey-ключей.
-Хотя бы один способ всегда остаётся включённым (защита от блокировки).
+Способы входа — **пароль**, **passkey** (WebAuthn: Touch ID / Windows Hello / аппаратный
+ключ) и **Telegram** (OpenID Connect). Это **альтернативы, а не второй фактор** — достаточно любого
+включённого. Управление — *Настройки → Вход в систему*: тумблеры «Пароль» / «Passkey» / «Telegram»,
+добавление и удаление passkey-ключей, привязка Telegram. Хотя бы один рабочий способ всегда остаётся
+включённым (защита от блокировки).
 
 Passkeys работают только в защищённом контексте (**HTTPS** или `localhost`). В настройках passkey
 задайте **rpId** (домен без `https://`) и **Origin** (полный адрес) — кнопка «Подставить текущий
 хост» заполнит их автоматически.
 
+**Вход через Telegram** настраивается в BotFather: бот → *Web Login* → *Switch to OpenID
+Connect Login*. Там же берутся **Client ID** и **Client Secret** — это отдельное значение, **не
+токен бота**. В *Allowed URLs* внесите адрес панели и Redirect URL
+(`<адрес панели>/api/auth/telegram/callback`; на странице настроек его можно скопировать).
+Затем в панели укажите «Адрес панели» (кнопка «Текущий адрес»), Client ID и Client Secret,
+сохраните и нажмите «Привязать Telegram» — входить сможет только привязанный аккаунт. Смена Client
+ID, Secret или адреса сбрасывает привязку.
+
 ### Восстановление доступа (забыли пароль)
 
-Если пароль утерян и нет рабочего паскея — сбросьте администратора встроенной CLI прямо в контейнере.
-После сброса панель снова покажет экран первичной настройки.
+Если вход по паролю выключен, а passkey или Telegram недоступны, — сначала верните вход по паролю.
+Passkey и привязка Telegram сохранятся:
+
+```bash
+docker compose exec infra-billing cli enable-password
+```
+
+Если и сам пароль утерян — сбросьте администратора. Это удалит логин, пароль, все passkey и
+привязку Telegram; панель снова покажет экран первичной настройки.
 
 ```bash
 # Интерактивное меню:
@@ -156,8 +229,9 @@ docker compose exec infra-billing cli reset-admin --yes
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Параметры контейнера Postgres |
 | `POSTGRES_HOST_PORT` | Порт публикации Postgres на `127.0.0.1` (default 5432) |
 | `DATABASE_URL` | Строка подключения Prisma (хост = `infra-billing-db` в docker, `127.0.0.1` локально) |
-| `ENCRYPTION_KEY` | **Обязательно.** AES-256-GCM ключ для секретов в БД — токены провайдеров и секрет сессии (32 байта base64) |
+| `ENCRYPTION_KEY` | **Обязательно.** AES-256-GCM ключ для секретов в БД — токены провайдеров, секрет сессии и Client Secret входа через Telegram (32 байта base64). После смены ключа Client Secret нужно ввести заново |
 | `DOCS` | `true` — включить Swagger UI на `/api/docs` (публично при включении). Default `false` |
+| `COOKIE_SECURE` | `Secure`-флаг сессионной куки. Не задан — следует за `NODE_ENV` (в prod включён). `false` — только для http-деплоя за защищённым транспортом (Tailscale/NetBird); passkeys всё равно требуют https |
 
 ---
 
@@ -170,6 +244,9 @@ docker compose exec infra-billing cli reset-admin --yes
 ```bash
 curl -H "Authorization: Bearer ib_…" https://infra-billing/api/providers
 ```
+
+Каждый провайдер приходит с массивом `accounts[]` (у каждого аккаунта свои креды, баланс и синк)
+и суммами `balances[]` по валютам; аккаунт правится через `/api/provider-accounts/{uuid}`.
 
 Токены имеют полный доступ к данным (провайдеры, сервисы, платежи, синк, настройки, аналитика),
 но **не к секретам провайдеров**: расшифровка кредов доступна только из сессии владельца, токену
@@ -194,8 +271,16 @@ curl -H "Authorization: Bearer ib_…" https://infra-billing/api/providers
   (страна определяется по дата-центру).
 - **HostBill** — base URL вашей инсталляции (напр. `https://secure.veesp.com/api`) + email + пароль.
 - **ISP BILLmanager** — base URL (`https://.../billmgr`) + логин + пароль (+ TOTP-секрет, если 2FA по OTP).
-- **Selectel** — номер аккаунта + сервисный пользователь IAM (имя + пароль) с ролью на биллинг;
-  опц. имя проекта Облачной платформы для облачных серверов.
+  Если хостер закрыл вход в API капчей (например, FirstVDS), панель сама переключается на
+  stateless-авторизацию `authinfo`. Для неё добавьте IP сервера панели в список разрешённых —
+  у FirstVDS это «Доступ к API» в настройках биллинга — иначе синк упадёт с ошибкой
+  `forbidden_auth_method`. 2FA в этом режиме не работает (нет сессии для подтверждения кода) —
+  отключите её у такого хостера.
+- **Selectel** — номер аккаунта + сервисный пользователь IAM (имя + пароль) с ролью
+  «Наблюдатель» (`reader`): она даёт баланс, потребление и список бакетов (роли «Биллинг» для
+  бакетов мало); опц. имя проекта Облачной платформы — для облачных серверов, роутеров и
+  бакетов S3. Стоимость каждого — среднее потребление в сутки за последние 7 дней (у сервера —
+  вместе с его дисками и публичными IP).
 - **4VPS.SU** — API-ключ (ЛК → раздел API) + id панели (обычно `1`).
 - **Netlen** — API-ключ (панель → раздел API). Важно: добавьте IP сервера в whitelist ключа, иначе
   запросы отклоняются (`NO_IP_WHITELISTED`). Баланс, серверы (цена в USD) и реестр транзакций
@@ -207,6 +292,9 @@ curl -H "Authorization: Bearer ib_…" https://infra-billing/api/providers
 - **Porkbun** — API key + Secret API key (Account → API Access; ключ нужно включить на каждом домене).
   Регистратор доменов: тянет домены (`type=domain`, дата продления = дата истечения), баланс (USD)
   и цену продления по TLD. Истории платежей в API нет.
+- **Spaceship** — API key + secret (API manager). Регистратор доменов: тянет домены (`type=domain`,
+  дата продления = дата истечения). Баланса, цен продления и истории платежей в API нет — цену
+  домена можно проставить руками.
 - **Vultr** — API-ключ (Account → API). Если на ключе включён Access Control — добавьте IP сервера
   в whitelist, иначе запросы отклоняются (403). Тянет баланс (USD), серверы (цена из тарифа) и
   реестр billing-history (пополнения и списания); страна определяется по региону.
@@ -240,6 +328,15 @@ curl -H "Authorization: Bearer ib_…" https://infra-billing/api/providers
   включена 2FA по приложению. Тянет баланс (EUR), VPS (цена, дата продления `expires_at`) и
   историю: пополнения (`/api/billing/history`) + списания по серверам (`/api/servers/{id}/history`).
   Публичного API-токена нет — синк логинится в панель.
+- **OpenRouter** — **Management API key** (openrouter.ai → Settings → Management Keys). Обычный
+  inference-ключ не подойдёт: синк проверяет его через `/key` и отклоняет с явной ошибкой.
+  LLM-агрегатор, серверов у него нет — панель заводит по услуге (`type=llm`) на каждую модель,
+  по которой был трафик. Цена услуги — фактический расход: за текущий месяц, а пока в нём трат
+  нет — за всё окно `/activity` (последние ~30 суток UTC, посуточно). Оттуда же импортируются
+  списания — по записи на «модель + день»; пополнений в API нет, поэтому в журнале только расход.
+  Баланс — остаток купленных кредитов (`/credits`: пополнено − потрачено, USD). Названия моделей
+  подставляются из каталога `/models` (тумблер «Имена из каталога» в форме; выключить — останутся
+  слаги вида `anthropic/claude-sonnet-5`), вендор берётся из слага и показывается иконкой.
 - **Manual** — без API, всё вводится руками.
 
 ## Telegram-уведомления
@@ -259,26 +356,29 @@ curl -H "Authorization: Bearer ib_…" https://infra-billing/api/providers
 
 ## Локальная разработка
 
+Команды — через [Task](https://taskfile.dev/installation) (`brew install go-task`), `task` без
+аргументов покажет список.
+
 ```bash
-make install            # npm ci
-make db-up              # поднять только Postgres (127.0.0.1:5432)
+task install            # npm ci
+task db-up              # поднять только Postgres (127.0.0.1:5432)
 
 # .env для локального запуска вне docker — DATABASE_URL на 127.0.0.1:
 #   DATABASE_URL="postgresql://infra:infra@127.0.0.1:5432/infra_billing?schema=public"
 
-make migrate            # prisma migrate dev
-make dev                # backend :8080 + frontend :5173 (Vite проксирует /api)
+task migrate            # prisma migrate dev
+task dev                # backend :8080 + frontend :5173 (Vite проксирует /api)
 ```
 
-Открыть <http://localhost:5173>. `make migrate`/`make studio` сами ходят в БД на `127.0.0.1`
-(см. `LOCAL_DATABASE_URL` в Makefile). Локальный билд образа: `make docker-build` + `make docker-up`
-(использует `docker-compose.yml` со сборкой из исходников).
+Открыть <http://localhost:5173>. `task migrate`/`task studio` сами ходят в БД на `127.0.0.1`
+(см. `LOCAL_DATABASE_URL` в `Taskfile.yml`). Локальный билд образа: `task docker-build` +
+`task docker-up` (использует `docker-compose.yml` со сборкой из исходников).
 
-Превью дашборда в шапке README обновляются так (нужны запущенные `make dev` и креды владельца):
+Превью дашборда в шапке README обновляются так (нужны запущенные `task dev` и креды владельца):
 
 ```bash
 # один раз, если нет системного Chrome: npx playwright install chromium
-CAPTURE_USER=admin CAPTURE_PASSWORD='…' make docs-screenshot
+CAPTURE_USER=admin CAPTURE_PASSWORD='…' task docs-screenshot
 ```
 
 Скрипт пишет `docs/screenshot-{dark,light}.webp` (Retina → рамка → WebP).

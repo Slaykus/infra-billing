@@ -1,13 +1,35 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { type LoginInput, loginSchema } from '@infra/shared';
-import { IconArrowsShuffle, IconFingerprint, IconLoader2 } from '@tabler/icons-react';
-import { lazy, Suspense, useLayoutEffect } from 'react';
+import {
+  type LoginInput,
+  loginSchema,
+  type TelegramResult,
+  telegramResultSchema,
+} from '@infra/shared';
+import {
+  IconArrowsShuffle,
+  IconBrandTelegram,
+  IconFingerprint,
+  IconLoader2,
+} from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { useLogin, usePasskeyLogin, useSetup, useSetupStatus } from '@/api/auth';
+import { Navigate, useSearchParams } from 'react-router-dom';
+import {
+  useLogin,
+  useMe,
+  usePasskeyLogin,
+  useSetup,
+  useSetupStatus,
+  useTelegramLogin,
+} from '@/api/auth';
 import { apiErrorMessage } from '@/api/client';
 import { mapPasskeyError, passkeySupported } from '@/api/webauthn';
+import { BrandWordmark } from '@/components/BrandWordmark';
+import { InkGlyph } from '@/components/ink/InkGlyph';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { PasswordInput } from '@/components/PasswordInput';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,67 +38,89 @@ import { Separator } from '@/components/ui/separator';
 import { notifyError, notifySuccess } from '@/utils/notify';
 import { generatePassword } from '@/utils/password';
 
-// The Remotion scene is heavy — load it lazily; the backdrop and title share one chunk.
-const LoginBackdrop = lazy(() =>
-  import('@/components/login/LoginScene').then((m) => ({ default: m.LoginBackdrop })),
-);
-const LoginTitle = lazy(() =>
-  import('@/components/login/LoginScene').then((m) => ({ default: m.LoginTitle })),
-);
-
+/**
+ * Quiet sign-in: the brand above one white card centred on the stone canvas. It follows the
+ * chosen theme like the rest of the app.
+ */
 export function LoginPage() {
   const { t } = useTranslation();
   const status = useSetupStatus();
+  const me = useMe();
+  const needsSetup = status.data?.needsSetup ?? false;
+  const telegramError = useTelegramReturnError();
 
-  // Keep the canvas near-black for the page's lifetime (see html.login-artwork in index.css):
-  // the boot override from index.html is cleared by ThemeProvider, and without this class the
-  // light-theme white canvas peeks through on overscroll. Layout effect = applied before paint.
-  useLayoutEffect(() => {
-    document.documentElement.classList.add('login-artwork');
-    return () => document.documentElement.classList.remove('login-artwork');
-  }, []);
+  // The Telegram callback sets the session and redirects to "/", but an owner who opens /login
+  // with a live session (a bookmark, the back button) belongs in the app as well.
+  if (me.isSuccess) return <Navigate to="/" replace />;
 
   return (
-    // Force the dark class: this artwork page is always dark regardless of the theme.
-    <div className="dark relative min-h-svh bg-[#0a0a0c] text-foreground">
-      <Suspense fallback={<div className="absolute inset-0 bg-[#0a0a0c]" />}>
-        <LoginBackdrop />
-      </Suspense>
-
-      <div className="relative z-10 flex min-h-svh items-center justify-center px-4 py-10">
-        <div className="w-full max-w-sm space-y-6">
-          <div className="flex flex-col items-center gap-1 text-center">
-            {/* Title with the remocn marker; a static h1 of the same height until the chunk loads. */}
-            <div className="h-[72px] w-full">
-              <Suspense
-                fallback={
-                  <h1 className="flex h-full items-center justify-center text-4xl font-extrabold tracking-tight text-white">
-                    {t('app.brand')}
-                  </h1>
-                }
-              >
-                <LoginTitle />
-              </Suspense>
-            </div>
-            <p className="text-sm text-muted-foreground">{t('dashboard.subtitle')}</p>
+    <div className="flex min-h-svh flex-col items-center justify-center bg-background px-4 py-10">
+      <div className="w-full max-w-sm">
+        <div className="mb-6 flex items-center justify-between gap-2 px-1">
+          <BrandWordmark />
+          <div className="flex items-center gap-0.5">
+            <ThemeToggle />
+            <LanguageSwitcher />
           </div>
+        </div>
+
+        <div className="rounded-2xl bg-card p-8 shadow-xs">
+          <h1 className="text-[15px] leading-none font-medium">
+            {needsSetup ? t('login.setup.title') : t('login.signIn')}
+          </h1>
+          <p className="mt-2.5 mb-6 text-[13px] text-ink-2">
+            {needsSetup ? t('login.setup.subtitle') : t('dashboard.subtitle')}
+          </p>
+
+          {telegramError && !needsSetup && (
+            <Alert className="mb-4">
+              <InkGlyph state={telegramError === 'denied' ? 'warn' : 'failed'} />
+              <AlertDescription className="text-foreground">
+                {t(`login.telegramErrors.${telegramError}`)}
+              </AlertDescription>
+            </Alert>
+          )}
 
           {status.isLoading ? (
             <div className="flex justify-center py-8">
-              <IconLoader2 className="size-5 animate-spin text-muted-foreground" />
+              <IconLoader2 className="size-5 animate-spin text-ink-3" />
             </div>
-          ) : status.data?.needsSetup ? (
+          ) : needsSetup ? (
             <SetupForm />
           ) : (
             <SignInForm
               passwordEnabled={status.data?.passwordEnabled ?? true}
               passkeyEnabled={status.data?.passkeyEnabled ?? false}
+              telegramEnabled={status.data?.telegramEnabled ?? false}
             />
           )}
         </div>
       </div>
     </div>
   );
+}
+
+// A failed Telegram sign-in comes back as /login?telegram=<code>. Keep the code for this visit
+// but drop it from the address, so a reload or a shared link doesn't replay a stale error.
+function useTelegramReturnError(): Exclude<TelegramResult, 'linked'> | null {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [error] = useState(() => {
+    const parsed = telegramResultSchema.safeParse(searchParams.get('telegram'));
+    return parsed.success && parsed.data !== 'linked' ? parsed.data : null;
+  });
+  const hasParam = searchParams.has('telegram');
+  useEffect(() => {
+    if (!hasParam) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('telegram');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [hasParam, setSearchParams]);
+  return error;
 }
 
 interface SetupValues {
@@ -114,10 +158,6 @@ function SetupForm() {
 
   return (
     <div className="space-y-4">
-      <div className="text-center">
-        <p className="font-semibold">{t('login.setup.title')}</p>
-        <p className="text-sm text-muted-foreground">{t('login.setup.subtitle')}</p>
-      </div>
       <form
         noValidate
         className="space-y-4"
@@ -125,7 +165,7 @@ function SetupForm() {
       >
         <div className="space-y-2">
           <Label htmlFor="setup-username">
-            {t('login.username')} <span className="text-destructive">*</span>
+            {t('login.username')} <span className="text-ink-3">*</span>
           </Label>
           <Input
             id="setup-username"
@@ -138,7 +178,7 @@ function SetupForm() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="setup-password">
-            {t('login.password')} <span className="text-destructive">*</span>
+            {t('login.password')} <span className="text-ink-3">*</span>
           </Label>
           <PasswordInput
             id="setup-password"
@@ -151,7 +191,7 @@ function SetupForm() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="setup-confirm">
-            {t('login.setup.confirm')} <span className="text-destructive">*</span>
+            {t('login.setup.confirm')} <span className="text-ink-3">*</span>
           </Label>
           <PasswordInput
             id="setup-confirm"
@@ -183,13 +223,16 @@ function SetupForm() {
 function SignInForm({
   passwordEnabled,
   passkeyEnabled,
+  telegramEnabled,
 }: {
   passwordEnabled: boolean;
   passkeyEnabled: boolean;
+  telegramEnabled: boolean;
 }) {
   const { t } = useTranslation();
   const login = useLogin();
   const passkeyLogin = usePasskeyLogin();
+  const telegramLogin = useTelegramLogin();
   const {
     register,
     handleSubmit,
@@ -211,7 +254,12 @@ function SignInForm({
     }
   };
 
-  if (!passwordEnabled && !passkeyEnabled) {
+  const doTelegram = () =>
+    telegramLogin.mutate(undefined, {
+      onError: (e) => notifyError(apiErrorMessage(e, t('login.failed'))),
+    });
+
+  if (!passwordEnabled && !passkeyEnabled && !telegramEnabled) {
     return (
       <Alert variant="destructive">
         <AlertDescription>{t('login.noMethods')}</AlertDescription>
@@ -229,7 +277,7 @@ function SignInForm({
         >
           <div className="space-y-2">
             <Label htmlFor="login-username">
-              {t('login.username')} <span className="text-destructive">*</span>
+              {t('login.username')} <span className="text-ink-3">*</span>
             </Label>
             <Input
               id="login-username"
@@ -242,7 +290,7 @@ function SignInForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="login-password">
-              {t('login.password')} <span className="text-destructive">*</span>
+              {t('login.password')} <span className="text-ink-3">*</span>
             </Label>
             <PasswordInput
               id="login-password"
@@ -265,10 +313,10 @@ function SignInForm({
         </form>
       )}
 
-      {passwordEnabled && canPasskey && (
+      {passwordEnabled && (canPasskey || telegramEnabled) && (
         <div className="flex items-center gap-3">
           <Separator className="flex-1" />
-          <span className="text-xs text-muted-foreground">{t('login.or')}</span>
+          <span className="text-xs text-ink-3">{t('login.or')}</span>
           <Separator className="flex-1" />
         </div>
       )}
@@ -290,10 +338,25 @@ function SignInForm({
             {t('login.passkey')}
           </Button>
         ) : (
-          <p className="text-center text-xs text-muted-foreground">
-            {t('auth.passkeys.unsupported')}
-          </p>
+          <p className="text-center text-xs text-ink-2">{t('auth.passkeys.unsupported')}</p>
         ))}
+
+      {telegramEnabled && (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          disabled={telegramLogin.isPending}
+          onClick={doTelegram}
+        >
+          {telegramLogin.isPending ? (
+            <IconLoader2 className="size-4 animate-spin" />
+          ) : (
+            <IconBrandTelegram className="size-4" />
+          )}
+          {t('login.telegram')}
+        </Button>
+      )}
     </div>
   );
 }

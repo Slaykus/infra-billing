@@ -2,10 +2,8 @@
 export const auth = {
   en: {
     title: 'Sign-in',
-    subtitle: 'Manage login methods and passkeys',
     methods: {
       title: 'Sign-in methods',
-      subtitle: 'Configure authentication methods',
       warning: 'Changing these settings may affect your ability to sign in',
       password: 'Password',
       passwordDescription: 'Username + password',
@@ -18,8 +16,48 @@ export const auth = {
       rpOriginDescription: 'Full https origin; comma-separate several',
       useCurrent: 'Use current host',
       saved: 'Sign-in methods saved',
-      lastMethodError: 'Keep at least one sign-in method enabled',
-      needPasskeyFirst: 'Add a passkey before disabling password sign-in',
+      telegram: 'Telegram',
+      telegramDescription: 'Sign in with your Telegram account',
+      lastMethodError:
+        'This would leave no way to sign in. Keep a password, a passkey or a linked Telegram account enabled',
+      needPasskeyFirst: 'Add a passkey or link Telegram before turning off password sign-in',
+    },
+    telegram: {
+      steps: {
+        open: 'In @BotFather, open your bot and go to Web Login (Login Widget).',
+        switch: 'Choose “Switch to OpenID Connect Login”.',
+        urls: 'Add the panel address and the redirect URL below to the allowed URLs.',
+        credentials:
+          'Copy the Client ID and Client Secret shown there. The Client Secret is not the bot token.',
+      },
+      origin: 'Panel address',
+      originDescription: 'The address you open the panel at. Telegram sends you back here.',
+      useCurrent: 'Use current address',
+      originMismatch:
+        'This page is open at a different address. Telegram sign-in works only at {{origin}}',
+      redirectUrl: 'Redirect URL',
+      redirectUrlDescription: 'Add it to the allowed URLs in BotFather exactly as shown',
+      clientId: 'Client ID',
+      clientIdDescription: 'The number BotFather shows as Client ID (your bot ID)',
+      clientSecret: 'Client Secret',
+      clientSecretDescription:
+        'Issued by BotFather next to the Client ID. This is not the bot token',
+      secretPlaceholderSet: 'set — leave empty to keep unchanged',
+      secretPlaceholderNew: 'paste the Client Secret',
+      credsResetNote:
+        'Changing the Client ID, Client Secret or panel address unlinks Telegram, and you will need to link it again.',
+      linked: 'Linked: {{label}}',
+      userId: 'ID {{id}}',
+      notLinked: 'Not linked',
+      link: 'Link Telegram',
+      unlink: 'Unlink',
+      confirmUnlink:
+        'Unlink Telegram? Signing in with Telegram will stop working until you link it again.',
+      unlinked: 'Telegram unlinked',
+      linkedToast: 'Telegram linked, sign-in with Telegram is on',
+      linkDenied: 'Linking was cancelled in Telegram',
+      saveFirst: 'Save the settings first',
+      linkFirst: 'Link your Telegram account first',
     },
     account: {
       title: 'Account',
@@ -32,14 +70,15 @@ export const auth = {
       namePrompt: 'Passkey name',
       namePlaceholder: 'e.g. MacBook Touch ID',
       unnamed: 'Unnamed passkey',
-      created: 'Added {{date}}',
-      lastUsed: 'last used {{date}}',
+      addedOn: 'Added',
+      lastUsedOn: 'last used',
       neverUsed: 'never used',
       backedUp: 'synced',
       added: 'Passkey added',
       empty: 'No passkeys yet',
       confirmDelete: 'Delete passkey “{{name}}”?',
-      lastMethodError: "Can't delete the last passkey while password sign-in is off",
+      lastMethodError:
+        "Can't delete the last passkey: it's your only way to sign in. Turn on password sign-in or link Telegram first",
       unsupported: 'Passkeys need a secure context (https or localhost) and a supporting browser',
       rpMismatch: 'Passkey domain mismatch — check rpId / origin in sign-in methods',
       failed: 'Passkey operation failed',
@@ -47,10 +86,8 @@ export const auth = {
   },
   ru: {
     title: 'Вход в систему',
-    subtitle: 'Управление способами входа и паскеями',
     methods: {
       title: 'Методы входа',
-      subtitle: 'Настройка способов аутентификации',
       warning: 'Изменение этих настроек может повлиять на возможность входа',
       password: 'Пароль',
       passwordDescription: 'Логин и пароль',
@@ -63,8 +100,49 @@ export const auth = {
       rpOriginDescription: 'Полный https-адрес; несколько — через запятую',
       useCurrent: 'Подставить текущий хост',
       saved: 'Способы входа сохранены',
-      lastMethodError: 'Оставьте включённым хотя бы один способ входа',
-      needPasskeyFirst: 'Добавьте паскей, прежде чем отключать вход по паролю',
+      telegram: 'Telegram',
+      telegramDescription: 'Вход через аккаунт Telegram',
+      lastMethodError:
+        'Так войти будет нечем. Оставьте включённым пароль, паскей или привязанный Telegram',
+      needPasskeyFirst:
+        'Добавьте паскей или привяжите Telegram, прежде чем отключать вход по паролю',
+    },
+    telegram: {
+      steps: {
+        open: 'В @BotFather откройте своего бота и перейдите в Web Login (Login Widget).',
+        switch: 'Выберите «Switch to OpenID Connect Login».',
+        urls: 'Добавьте в разрешённые адреса адрес панели и Redirect URL ниже.',
+        credentials:
+          'Скопируйте показанные там Client ID и Client Secret. Client Secret — это не токен бота.',
+      },
+      origin: 'Адрес панели',
+      originDescription:
+        'Адрес, по которому вы открываете панель. Сюда Telegram вернёт вас после входа.',
+      useCurrent: 'Текущий адрес',
+      originMismatch:
+        'Страница открыта по другому адресу. Вход через Telegram работает только на {{origin}}',
+      redirectUrl: 'Redirect URL',
+      redirectUrlDescription: 'Добавьте его в разрешённые адреса в BotFather ровно в таком виде',
+      clientId: 'Client ID',
+      clientIdDescription: 'Число, которое BotFather показывает как Client ID (ID бота)',
+      clientSecret: 'Client Secret',
+      clientSecretDescription: 'Выдаёт BotFather рядом с Client ID. Это не токен бота',
+      secretPlaceholderSet: 'задан — оставьте пустым, чтобы не менять',
+      secretPlaceholderNew: 'вставьте Client Secret',
+      credsResetNote:
+        'Если изменить Client ID, Client Secret или адрес панели, привязка Telegram сбросится — его нужно будет привязать заново.',
+      linked: 'Привязан: {{label}}',
+      userId: 'ID {{id}}',
+      notLinked: 'Не привязан',
+      link: 'Привязать Telegram',
+      unlink: 'Отвязать',
+      confirmUnlink:
+        'Отвязать Telegram? Вход через Telegram перестанет работать, пока вы не привяжете его снова.',
+      unlinked: 'Telegram отвязан',
+      linkedToast: 'Telegram привязан, вход через него включён',
+      linkDenied: 'Привязка отменена в Telegram',
+      saveFirst: 'Сначала сохраните настройки',
+      linkFirst: 'Сначала привяжите аккаунт Telegram',
     },
     account: {
       title: 'Учётная запись',
@@ -77,14 +155,15 @@ export const auth = {
       namePrompt: 'Название ключа',
       namePlaceholder: 'напр. MacBook Touch ID',
       unnamed: 'Без названия',
-      created: 'Добавлен {{date}}',
-      lastUsed: 'посл. вход {{date}}',
+      addedOn: 'Добавлен',
+      lastUsedOn: 'посл. вход',
       neverUsed: 'ещё не использовался',
       backedUp: 'синхронизирован',
       added: 'Паскей добавлен',
       empty: 'Пока нет паскеев',
       confirmDelete: 'Удалить паскей «{{name}}»?',
-      lastMethodError: 'Нельзя удалить последний паскей при отключённом входе по паролю',
+      lastMethodError:
+        'Нельзя удалить последний паскей: другого способа войти нет. Сначала включите вход по паролю или привяжите Telegram',
       unsupported:
         'Для паскеев нужен защищённый контекст (https или localhost) и поддержка браузера',
       rpMismatch: 'Несовпадение домена паскея — проверьте rpId / origin в методах входа',

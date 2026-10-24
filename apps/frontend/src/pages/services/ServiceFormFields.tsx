@@ -1,27 +1,24 @@
-import type { Service } from '@infra/shared';
+import type { Provider, Service } from '@infra/shared';
 import { IconCalendarDollar, IconStack2 } from '@tabler/icons-react';
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { Combobox, type ComboboxOption } from '@/components/Combobox';
 import { CountryCombobox } from '@/components/CountryCombobox';
+import { CreatableCombobox } from '@/components/CreatableCombobox';
 import { DateField } from '@/components/DateField';
 import { FormSection } from '@/components/FormSection';
+import { ProviderCombobox } from '@/components/ProviderCombobox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { normalizeMoney, trimMoney } from '@/utils/format';
+import { AccountSelect, accountsOf, impliedAccount } from './AccountSelect';
 import { OverriddenMark } from './OverriddenMark';
-import type { SForm } from './serviceForm';
+import { ServiceMarkerField } from './ServiceMarkerField';
+import { LOCATED_TYPES } from './ServiceTypeIcon';
+import { LLM_VENDOR_OPTIONS, vendorFromModelSlug } from './llmVendorIcon';
+import { metaString, type SForm } from './serviceForm';
 
-function metaString(meta: Record<string, unknown> | undefined, key: string): string | undefined {
-  const v = meta?.[key];
-  return typeof v === 'string' ? v : undefined;
-}
+const TYPE_RE = /^[\p{L}\p{N}][\p{L}\p{N} ._/-]{0,39}$/u;
 
 /** Pencil when the value leaves the provider baseline (or the loaded value before first sync). */
 function showOverrideMark(
@@ -38,39 +35,53 @@ function showOverrideMark(
 interface ServiceFormFieldsProps {
   form: UseFormReturn<SForm>;
   editing: Service | null;
-  providerOptions: { value: string; label: string }[];
-  projectOptions: { value: string; label: string }[];
+  providers: Provider[] | undefined;
+  projectOptions: ComboboxOption[];
   typeOptions: { value: string; label: string }[];
   periodOptions: { value: string; label: string }[];
   currencyOptions: { value: string; label: string }[];
   countryOptions: { value: string; label: string }[];
+  onTypeCreated?: (type: string) => void;
 }
 
 // The service form fields, shared between the create modal and the detail modal.
 export function ServiceFormFields({
   form,
   editing,
-  providerOptions,
+  providers,
   projectOptions,
   typeOptions,
   periodOptions,
   currencyOptions,
   countryOptions,
+  onTypeCreated,
 }: ServiceFormFieldsProps) {
   const { t } = useTranslation();
   const {
     register,
     control,
     setValue,
+    getValues,
     watch,
     formState: { errors, defaultValues },
   } = form;
   const name = watch('name');
+  const accounts = accountsOf(providers, watch('providerUuid'));
   const type = watch('type');
   const cost = watch('cost');
-  const syncedName = metaString(editing?.meta, 'syncedName');
-  const syncedType = metaString(editing?.meta, 'syncedType');
-  const syncedCost = metaString(editing?.meta, 'syncedCost');
+  const syncedName = metaString(editing?.meta, 'syncedName') || undefined;
+  const syncedType = metaString(editing?.meta, 'syncedType') || undefined;
+  const syncedCost = metaString(editing?.meta, 'syncedCost') || undefined;
+  const syncedPeriod = metaString(editing?.meta, 'syncedPeriod') || undefined;
+  const syncedCurrency = metaString(editing?.meta, 'syncedCurrency') || undefined;
+  const marker = watch('marker');
+  const markerBg = watch('markerBg');
+  const vendor = watch('vendor');
+  const syncedVendor =
+    metaString(editing?.meta, 'syncedVendor') ||
+    vendorFromModelSlug(metaString(editing?.meta, 'model')) ||
+    undefined;
+  const restoreOpts = { shouldDirty: true, shouldValidate: true } as const;
   const showNameMark = Boolean(
     editing &&
       showOverrideMark(name, defaultValues?.name ?? '', editing.nameOverridden, syncedName),
@@ -79,9 +90,61 @@ export function ServiceFormFields({
     editing &&
       showOverrideMark(type, defaultValues?.type ?? '', editing.typeOverridden, syncedType),
   );
+  const showVendorMark = Boolean(
+    editing &&
+      type === 'llm' &&
+      showOverrideMark(vendor.trim(), (defaultValues?.vendor ?? '').trim(), false, syncedVendor),
+  );
+
+  const countryBaseline = () => {
+    const synced = metaString(editing?.meta, 'syncedCountry');
+    if (synced && synced !== 'XX') return synced;
+    if (editing?.countryCode && editing.countryCode !== 'XX') return editing.countryCode;
+    const loaded = defaultValues?.countryCode ?? '';
+    return loaded && loaded !== 'XX' ? loaded : '';
+  };
+
+  const applyTypeSideEffects = (next: string) => {
+    if (LOCATED_TYPES.has(next)) {
+      setValue('vendor', '', restoreOpts);
+      setValue('marker', '', restoreOpts);
+      setValue('markerBg', '', restoreOpts);
+      const current = getValues('countryCode');
+      if (!current || current === 'XX') {
+        const baseline = countryBaseline();
+        if (baseline) setValue('countryCode', baseline, restoreOpts);
+      }
+    } else if (next === 'llm') {
+      setValue('marker', '', restoreOpts);
+      setValue('markerBg', '', restoreOpts);
+    } else {
+      setValue('vendor', '', restoreOpts);
+    }
+  };
+
+  const restoreType = () => {
+    const next = syncedType ?? defaultValues?.type ?? '';
+    setValue('type', next, restoreOpts);
+    applyTypeSideEffects(next);
+    if (LOCATED_TYPES.has(next)) {
+      const baseline = countryBaseline();
+      if (baseline) setValue('countryCode', baseline, restoreOpts);
+    }
+  };
   const loadedCost = trimMoney(String(defaultValues?.cost ?? ''));
   const baselineCost = syncedCost != null ? trimMoney(syncedCost) : loadedCost;
-  // Compare in canonical form so "10.5" doesn't read as an edit of a "10.50" baseline.
+  // A synced price is a cost in its own period and currency: restore them together, or a daily
+  // figure would be saved as a monthly price.
+  const restoreCost = () => {
+    setValue('cost', baselineCost, restoreOpts);
+    if (syncedCost == null) return;
+    if (syncedPeriod && periodOptions.some((o) => o.value === syncedPeriod)) {
+      setValue('period', syncedPeriod, restoreOpts);
+    }
+    if (syncedCurrency && currencyOptions.some((o) => o.value === syncedCurrency)) {
+      setValue('currency', syncedCurrency, restoreOpts);
+    }
+  };
   const showCostMark = Boolean(
     editing &&
       showOverrideMark(
@@ -91,7 +154,6 @@ export function ServiceFormFields({
         syncedCost != null ? normalizeMoney(syncedCost) : undefined,
       ),
   );
-  const restoreOpts = { shouldDirty: true, shouldValidate: true } as const;
 
   return (
     <>
@@ -103,23 +165,19 @@ export function ServiceFormFields({
             name="providerUuid"
             rules={{ validate: (v) => (v ? true : t('validation.selectProvider')) }}
             render={({ field }) => (
-              <Select
+              <ProviderCombobox
+                id="service-provider"
+                providers={providers}
                 value={field.value}
-                onValueChange={field.onChange}
-                // Synced services are matched by provider, so can't be reattached elsewhere.
+                onChange={(v) => {
+                  field.onChange(v);
+                  setValue('accountUuid', impliedAccount(accountsOf(providers, v)));
+                }}
+                placeholder={t('validation.selectProvider')}
+                // Synced services are matched by account, so can't be reattached elsewhere.
                 disabled={Boolean(editing?.isManaged)}
-              >
-                <SelectTrigger id="service-provider" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {providerOptions.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                invalid={!!errors.providerUuid}
+              />
             )}
           />
           {editing?.isManaged && (
@@ -130,24 +188,37 @@ export function ServiceFormFields({
           )}
         </div>
 
+        {accounts.length > 1 && (
+          <Controller
+            control={control}
+            name="accountUuid"
+            rules={{ validate: (v) => (v ? true : t('validation.selectAccount')) }}
+            render={({ field }) => (
+              <AccountSelect
+                id="service-account"
+                label={t('services.fieldAccount')}
+                accounts={accounts}
+                value={field.value}
+                onChange={field.onChange}
+                disabled={Boolean(editing?.isManaged)}
+                error={errors.accountUuid?.message}
+              />
+            )}
+          />
+        )}
+
         <div className="space-y-2">
           <Label htmlFor="service-project">{t('services.fieldProject')}</Label>
           <Controller
             control={control}
             name="projectUuid"
             render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="service-project" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {projectOptions.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                id="service-project"
+                value={field.value}
+                onChange={field.onChange}
+                options={projectOptions}
+              />
             )}
           />
         </div>
@@ -155,7 +226,7 @@ export function ServiceFormFields({
         <div className="space-y-2">
           <div className="flex h-4 items-center gap-1">
             <Label htmlFor="service-name">
-              {t('services.fieldName')} <span className="text-destructive">*</span>
+              {t('services.fieldName')} <span aria-hidden>*</span>
             </Label>
             {showNameMark && (
               <OverriddenMark
@@ -176,6 +247,16 @@ export function ServiceFormFields({
           {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
         </div>
 
+        <div className="space-y-2">
+          <Label htmlFor="service-description">{t('services.fieldDescription')}</Label>
+          <Input
+            id="service-description"
+            maxLength={500}
+            placeholder={t('services.descriptionPlaceholder')}
+            {...register('description')}
+          />
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
           <div className="min-w-0 space-y-2">
             <div className="flex h-4 items-center gap-1">
@@ -183,30 +264,31 @@ export function ServiceFormFields({
               {showTypeMark && (
                 <OverriddenMark
                   label={t('services.detail.typeOverridden')}
-                  onRestore={() =>
-                    setValue('type', syncedType ?? defaultValues?.type ?? '', restoreOpts)
-                  }
+                  onRestore={restoreType}
                 />
               )}
             </div>
             <Controller
               control={control}
               name="type"
+              rules={{
+                validate: (v) =>
+                  TYPE_RE.test(v.trim()) ? true : t('validation.serviceTypeInvalid'),
+              }}
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="service-type" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {typeOptions.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CreatableCombobox
+                  id="service-type"
+                  value={field.value}
+                  onChange={(v) => {
+                    field.onChange(v);
+                    applyTypeSideEffects(v);
+                  }}
+                  onCreate={onTypeCreated}
+                  options={typeOptions}
+                />
               )}
             />
+            {errors.type && <p className="text-xs text-destructive">{errors.type.message}</p>}
           </div>
           <div className="min-w-0 space-y-2">
             <div className="flex h-4 items-center gap-1">
@@ -216,18 +298,12 @@ export function ServiceFormFields({
               control={control}
               name="period"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="service-period" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {periodOptions.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  id="service-period"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={periodOptions}
+                />
               )}
             />
           </div>
@@ -239,12 +315,12 @@ export function ServiceFormFields({
           <div className="min-w-0 space-y-2">
             <div className="flex h-4 items-center gap-1">
               <Label htmlFor="service-cost">
-                {t('services.fieldCost')} <span className="text-destructive">*</span>
+                {t('services.fieldCost')} <span aria-hidden>*</span>
               </Label>
               {showCostMark && (
                 <OverriddenMark
                   label={t('services.detail.costOverridden')}
-                  onRestore={() => setValue('cost', baselineCost, restoreOpts)}
+                  onRestore={restoreCost}
                 />
               )}
             </div>
@@ -267,18 +343,12 @@ export function ServiceFormFields({
               control={control}
               name="currency"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="service-currency" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currencyOptions.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  id="service-currency"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={currencyOptions}
+                />
               )}
             />
           </div>
@@ -286,22 +356,66 @@ export function ServiceFormFields({
 
         <div className="grid grid-cols-2 gap-4">
           <div className="min-w-0 space-y-2">
-            <div className="flex h-4 items-center gap-1">
-              <Label htmlFor="service-country">{t('services.fieldCountry')}</Label>
-            </div>
-            <Controller
-              control={control}
-              name="countryCode"
-              render={({ field }) => (
-                <CountryCombobox
-                  id="service-country"
-                  value={field.value}
-                  onChange={field.onChange}
-                  options={countryOptions}
-                  placeholder={t('services.countryPlaceholder')}
+            {LOCATED_TYPES.has(type) ? (
+              <>
+                <div className="flex h-4 items-center gap-1">
+                  <Label htmlFor="service-country">{t('services.fieldCountry')}</Label>
+                </div>
+                <Controller
+                  control={control}
+                  name="countryCode"
+                  render={({ field }) => (
+                    <CountryCombobox
+                      id="service-country"
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={countryOptions}
+                      placeholder={t('services.countryPlaceholder')}
+                    />
+                  )}
                 />
-              )}
-            />
+              </>
+            ) : type === 'llm' ? (
+              <>
+                <div className="flex h-4 items-center gap-1">
+                  <Label htmlFor="service-vendor">{t('services.fieldVendor')}</Label>
+                  {showVendorMark && (
+                    <OverriddenMark
+                      label={t('services.detail.vendorOverridden')}
+                      onRestore={() =>
+                        setValue('vendor', syncedVendor ?? defaultValues?.vendor ?? '', restoreOpts)
+                      }
+                    />
+                  )}
+                </div>
+                <Controller
+                  control={control}
+                  name="vendor"
+                  render={({ field }) => (
+                    <CreatableCombobox
+                      id="service-vendor"
+                      value={field.value}
+                      onChange={field.onChange}
+                      options={LLM_VENDOR_OPTIONS}
+                      placeholder={t('services.vendorPlaceholder')}
+                    />
+                  )}
+                />
+              </>
+            ) : (
+              <>
+                <div className="flex h-4 items-center gap-1">
+                  <Label htmlFor="service-marker">{t('services.fieldMarker')}</Label>
+                </div>
+                <ServiceMarkerField
+                  id="service-marker"
+                  marker={marker}
+                  markerBg={markerBg}
+                  onMarkerChange={(v) => setValue('marker', v, restoreOpts)}
+                  onMarkerBgChange={(v) => setValue('markerBg', v, restoreOpts)}
+                />
+              </>
+            )}
           </div>
           <div className="min-w-0 space-y-2">
             <div className="flex h-4 items-center gap-1">

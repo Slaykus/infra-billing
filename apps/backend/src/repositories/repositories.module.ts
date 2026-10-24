@@ -9,6 +9,7 @@ import { NotificationLogRepository } from './notification-log/notification-log.r
 import { PasskeysRepository } from './passkeys/passkeys.repository';
 import { PaymentsRepository } from './payments/payments.repository';
 import { ProjectsRepository } from './projects/projects.repository';
+import { ProviderAccountsRepository } from './provider-accounts/provider-accounts.repository';
 import { ProvidersRepository } from './providers/providers.repository';
 import { ServicesRepository } from './services/services.repository';
 import { SettingsRepository } from './settings/settings.repository';
@@ -25,6 +26,7 @@ const REPOSITORIES = [
   PasskeysRepository,
   PaymentsRepository,
   ProjectsRepository,
+  ProviderAccountsRepository,
   ProvidersRepository,
   ServicesRepository,
   SettingsRepository,

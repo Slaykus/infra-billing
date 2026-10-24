@@ -1,3 +1,4 @@
+import type { Provider } from '@infra/shared';
 import { IconLoader2 } from '@tabler/icons-react';
 import type { FormEventHandler } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
@@ -11,12 +12,13 @@ interface ServiceFormModalProps {
   opened: boolean;
   form: UseFormReturn<SForm>;
   isPending: boolean;
-  providerOptions: { value: string; label: string }[];
+  providers: Provider[] | undefined;
   projectOptions: { value: string; label: string }[];
   typeOptions: { value: string; label: string }[];
   periodOptions: { value: string; label: string }[];
   currencyOptions: { value: string; label: string }[];
   countryOptions: { value: string; label: string }[];
+  onTypeCreated?: (type: string) => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
   onClose: () => void;
 }
@@ -26,12 +28,13 @@ export function ServiceFormModal({
   opened,
   form,
   isPending,
-  providerOptions,
+  providers,
   projectOptions,
   typeOptions,
   periodOptions,
   currencyOptions,
   countryOptions,
+  onTypeCreated,
   onSubmit,
   onClose,
 }: ServiceFormModalProps) {
@@ -47,12 +50,13 @@ export function ServiceFormModal({
           <ServiceFormFields
             form={form}
             editing={null}
-            providerOptions={providerOptions}
+            providers={providers}
             projectOptions={projectOptions}
             typeOptions={typeOptions}
             periodOptions={periodOptions}
             currencyOptions={currencyOptions}
             countryOptions={countryOptions}
+            onTypeCreated={onTypeCreated}
           />
           <Button type="submit" disabled={isPending} className="w-full">
             {isPending && <IconLoader2 className="size-4 animate-spin" />}

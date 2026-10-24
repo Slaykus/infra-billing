@@ -1,9 +1,11 @@
-import type { Project, Provider, Service } from '@infra/shared';
+import type { Project, Service } from '@infra/shared';
 import { IconCalendarPlus } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+import { CountryFlag } from '@/components/CountryFlag';
 import { EntityLabel } from '@/components/EntityLabel';
+import { CardHeadRow } from '@/components/ink/CardHeadRow';
+import { InkGlyph } from '@/components/ink/InkGlyph';
 import { SortableTableHead } from '@/components/SortableTableHead';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -18,16 +20,37 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { SortState } from '@/hooks/useTableSort';
 import { cn } from '@/lib/utils';
 import { projectFavicon, providerFavicon } from '@/utils/favicon';
-import { countryFlag, formatCost, formatDateShort, truncate } from '@/utils/format';
+import { type AccountRef, accountDisplayName } from '@/utils/providerState';
+import { formatCost, formatDateShort, truncate } from '@/utils/format';
 import type { ServiceSortKey } from './servicesSort';
-import { LOCATED_TYPES, ServiceTypeIcon } from './ServiceTypeIcon';
+import { ServiceSourceBadge } from './ServiceSourceBadge';
+import {
+  LOCATED_TYPES,
+  ServiceTypeIcon,
+  serviceTypeMarker,
+  serviceTypeMarkerBg,
+  serviceTypeModel,
+} from './ServiceTypeIcon';
 
 const NAME_MAX_LENGTH = 40;
+const DESCRIPTION_MAX_LENGTH = 60;
+const COLUMNS = 9;
+
+// Metered and one-off services are left out, as in the dashboard's overdue list: a past date
+// there only means the next sync hasn't moved it yet.
+const NO_OVERDUE_PERIODS = new Set(['daily', 'hourly', 'onetime']);
+
+/** An active service whose billing date has passed without being moved on. */
+function isOverdue(s: Service): boolean {
+  if (!s.isActive || !s.nextBillingAt || NO_OVERDUE_PERIODS.has(s.period)) return false;
+  // UTC date parts on both sides, like the backend's overdue math.
+  return s.nextBillingAt.slice(0, 10) < new Date().toISOString().slice(0, 10);
+}
 
 interface ServicesTableProps {
   services: Service[] | undefined;
   isLoading: boolean;
-  providerOf: (uuid: string) => Provider | undefined;
+  accountOf: (accountUuid: string) => AccountRef | undefined;
   projectOf: (uuid: string) => Project | undefined;
   serviceTypeLabel: (type: string) => string;
   periodLabel: (period: string) => string;
@@ -40,7 +63,7 @@ interface ServicesTableProps {
 export function ServicesTable({
   services,
   isLoading,
-  providerOf,
+  accountOf,
   projectOf,
   serviceTypeLabel,
   periodLabel,
@@ -50,33 +73,45 @@ export function ServicesTable({
   onBumpNextBilling,
 }: ServicesTableProps) {
   const { t } = useTranslation();
-  const sortHead = (key: ServiceSortKey, label: string) => (
+  const mainLabel = t('common.accountMain');
+  const sortHead = (key: ServiceSortKey, label: string, className?: string) => (
     <SortableTableHead
       label={label}
       active={sort?.key === key ? sort.dir : null}
       onToggle={() => onToggleSort(key)}
+      className={className}
     />
   );
   return (
-    <Card className="overflow-hidden py-0">
+    <Card className="gap-0 overflow-hidden py-0">
+      <CardHeadRow title={t('services.title')} count={services?.length} />
       <div className="overflow-x-auto">
-        <Table className="min-w-[760px]">
+        <Table className="min-w-[920px]">
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10 pl-6">
+                <span className="sr-only">{t('services.colStatus')}</span>
+              </TableHead>
               {sortHead('name', t('services.colName'))}
               {sortHead('provider', t('services.colProvider'))}
               {sortHead('project', t('services.colProject'))}
               {sortHead('type', t('services.colType'))}
-              {sortHead('cost', t('services.colCost'))}
+              {sortHead(
+                'cost',
+                t('services.colCost'),
+                'text-right [&>button]:-mr-2 [&>button]:ml-0',
+              )}
               {sortHead('period', t('services.colPeriod'))}
               {sortHead('nextBilling', t('services.colNextBilling'))}
-              <TableHead className="text-muted-foreground">{t('services.colSource')}</TableHead>
+              <TableHead className="pr-6">{t('services.colSource')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {services?.map((s) => {
-              const provider = providerOf(s.providerUuid);
+              const ref = accountOf(s.accountUuid);
+              const provider = ref?.provider;
               const project = projectOf(s.projectUuid);
+              const overdue = isOverdue(s);
               return (
                 <TableRow
                   key={s.uuid}
@@ -90,40 +125,61 @@ export function ServicesTable({
                     }
                   }}
                   className={cn(
-                    'cursor-pointer focus-visible:bg-muted/50 focus-visible:outline-none',
+                    'cursor-pointer focus-visible:bg-background focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
                     !s.isActive && 'opacity-50',
                   )}
                 >
-                  <TableCell className="py-3">
-                    <div className="flex items-center gap-1.5">
+                  <TableCell className="w-10 pl-6">
+                    <InkGlyph
+                      state={s.isActive ? 'ok' : 'off'}
+                      label={t(s.isActive ? 'services.statusActive' : 'services.statusInactive')}
+                    />
+                  </TableCell>
+                  <TableCell className="max-w-[320px]">
+                    <div className="flex min-w-0 items-center gap-2">
                       {LOCATED_TYPES.has(s.type) ? (
-                        <span>{countryFlag(s.countryCode)}</span>
+                        <CountryFlag code={s.countryCode} />
                       ) : (
-                        <ServiceTypeIcon type={s.type} />
+                        <ServiceTypeIcon
+                          type={s.type}
+                          model={serviceTypeModel(s.meta)}
+                          marker={serviceTypeMarker(s.meta)}
+                          markerBg={serviceTypeMarkerBg(s.meta)}
+                        />
                       )}
-                      {s.name.length > NAME_MAX_LENGTH ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="font-semibold">
-                              {truncate(s.name, NAME_MAX_LENGTH)}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>{s.name}</TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <span className="font-semibold">{s.name}</span>
-                      )}
-                      {!s.isActive && (
-                        <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
-                          {t('services.badgeInactive')}
-                        </Badge>
-                      )}
+                      <div className="min-w-0">
+                        {s.name.length > NAME_MAX_LENGTH ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <p className="truncate font-medium">
+                                {truncate(s.name, NAME_MAX_LENGTH)}
+                              </p>
+                            </TooltipTrigger>
+                            <TooltipContent>{s.name}</TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <p className="truncate font-medium">{s.name}</p>
+                        )}
+                        {s.description &&
+                          (s.description.length > DESCRIPTION_MAX_LENGTH ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <p className="truncate text-[13px] text-ink-2">
+                                  {truncate(s.description, DESCRIPTION_MAX_LENGTH)}
+                                </p>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">{s.description}</TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <p className="truncate text-[13px] text-ink-2">{s.description}</p>
+                          ))}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <EntityLabel
-                      name={provider?.name ?? ''}
-                      src={providerFavicon(provider ?? { faviconLink: null, loginUrl: null })}
+                      name={ref ? accountDisplayName(ref.provider, ref.account, mainLabel) : ''}
+                      src={providerFavicon(provider)}
                       iconName={provider?.iconName}
                       iconBg={provider?.iconBg}
                     />
@@ -131,24 +187,27 @@ export function ServicesTable({
                   <TableCell>
                     <EntityLabel
                       name={project?.name ?? ''}
-                      src={projectFavicon(project?.faviconLink ?? null)}
+                      src={projectFavicon(project)}
                       iconName={project?.iconName}
                       iconBg={project?.iconBg}
                     />
                   </TableCell>
                   <TableCell>{serviceTypeLabel(s.type)}</TableCell>
-                  <TableCell>{formatCost(s.cost, s.currency)}</TableCell>
+                  <TableCell className="text-right">{formatCost(s.cost, s.currency)}</TableCell>
                   <TableCell>{periodLabel(s.period)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      {formatDateShort(s.nextBillingAt)}
+                      <span className={overdue ? 'text-destructive' : undefined}>
+                        {formatDateShort(s.nextBillingAt)}
+                        {overdue && <span className="sr-only"> ({t('services.overdue')})</span>}
+                      </span>
                       {s.nextBillingAt && (
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
                               variant="ghost"
-                              size="icon-sm"
-                              className="text-muted-foreground"
+                              size="icon-xs"
+                              className="text-ink-3 hover:text-foreground"
                               aria-label={t('services.bumpTooltip')}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -165,24 +224,16 @@ export function ServicesTable({
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={s.isManaged ? 'default' : 'secondary'}
-                      className={cn(
-                        'text-[10px] uppercase tracking-wide',
-                        s.isManaged && 'border-transparent bg-brand/15 text-brand',
-                      )}
-                    >
-                      {s.isManaged ? t('services.sourceManaged') : t('services.sourceManual')}
-                    </Badge>
+                  <TableCell className="pr-6">
+                    <ServiceSourceBadge managed={s.isManaged} />
                   </TableCell>
                 </TableRow>
               );
             })}
             {!isLoading && services?.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8}>
-                  <p className="py-4 text-center text-muted-foreground">{t('services.empty')}</p>
+                <TableCell colSpan={COLUMNS}>
+                  <p className="py-4 text-center text-ink-2">{t('services.empty')}</p>
                 </TableCell>
               </TableRow>
             )}

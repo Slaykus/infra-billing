@@ -17,6 +17,7 @@ export const API = {
   BUILD_INFO: 'build-info',
   AUTH: 'auth',
   PROVIDERS: 'providers',
+  PROVIDER_ACCOUNTS: 'provider-accounts',
   PROJECTS: 'projects',
   SERVICES: 'services',
   PAYMENTS: 'payments',
@@ -31,6 +32,8 @@ export const API = {
 /** Method sub-paths within a controller (NestJS-style; `:uuid` for route params). */
 export const API_SUB = {
   BY_ID: ID,
+  // Proxied favicon of a provider / project (same sub-path on both controllers).
+  FAVICON: `${ID}/favicon`,
   AUTH_LOGIN: 'login',
   AUTH_LOGOUT: 'logout',
   AUTH_ME: 'me',
@@ -42,14 +45,24 @@ export const API_SUB = {
   AUTH_PASSKEY_REGISTER_VERIFY: 'passkey/register/verify',
   AUTH_PASSKEYS: 'passkeys',
   AUTH_PASSKEY_BY_ID: `passkeys/${ID}`,
+  AUTH_TELEGRAM_LOGIN: 'telegram/login',
+  // POST starts linking the owner's Telegram account, DELETE unlinks it.
+  AUTH_TELEGRAM_LINK: 'telegram/link',
+  AUTH_TELEGRAM_CALLBACK: 'telegram/callback',
   PROJECT_MOVE_ALL: `${ID}/move-all`,
   PROJECT_EMPTY: `${ID}/empty`,
   PROJECT_STATS: `${ID}/stats`,
   PROVIDER_SYNC_ALL: 'sync-all',
+  // Syncs every enabled account of the provider.
   PROVIDER_SYNC: `${ID}/sync`,
-  PROVIDER_SYNC_RUNS: `${ID}/sync-runs`,
-  PROVIDER_BALANCE_HISTORY: `${ID}/balance-history`,
-  PROVIDER_CREDENTIALS_REVEAL: `${ID}/credentials/reveal`,
+  PROVIDER_ACCOUNTS: `${ID}/accounts`,
+  PROVIDER_MERGE: `${ID}/merge`,
+  // Per-account routes (provider-accounts controller).
+  ACCOUNT_SYNC: `${ID}/sync`,
+  ACCOUNT_SYNC_RUNS: `${ID}/sync-runs`,
+  ACCOUNT_BALANCE_HISTORY: `${ID}/balance-history`,
+  ACCOUNT_SPEND: `${ID}/spend`,
+  ACCOUNT_CREDENTIALS_REVEAL: `${ID}/credentials/reveal`,
   // netcup OAuth2 device flow (in-panel token acquisition).
   PROVIDER_NETCUP_DEVICE_START: 'netcup/device/start',
   PROVIDER_NETCUP_DEVICE_POLL: 'netcup/device/poll',
@@ -87,24 +100,36 @@ export const API_PATH = {
     PASSKEY_REGISTER_VERIFY: path(API.AUTH, API_SUB.AUTH_PASSKEY_REGISTER_VERIFY),
     PASSKEYS: path(API.AUTH, API_SUB.AUTH_PASSKEYS),
     PASSKEY_BY_ID: (uuid: string) => pathId(API.AUTH, API_SUB.AUTH_PASSKEY_BY_ID, uuid),
+    TELEGRAM_LOGIN: path(API.AUTH, API_SUB.AUTH_TELEGRAM_LOGIN),
+    TELEGRAM_LINK: path(API.AUTH, API_SUB.AUTH_TELEGRAM_LINK),
+    TELEGRAM_CALLBACK: path(API.AUTH, API_SUB.AUTH_TELEGRAM_CALLBACK),
   },
   PROVIDERS: {
     ROOT: path(API.PROVIDERS),
     BY_ID: (uuid: string) => pathId(API.PROVIDERS, API_SUB.BY_ID, uuid),
+    FAVICON: (uuid: string) => pathId(API.PROVIDERS, API_SUB.FAVICON, uuid),
     SYNC_ALL: path(API.PROVIDERS, API_SUB.PROVIDER_SYNC_ALL),
     SYNC: (uuid: string) => pathId(API.PROVIDERS, API_SUB.PROVIDER_SYNC, uuid),
-    SYNC_RUNS: (uuid: string) => pathId(API.PROVIDERS, API_SUB.PROVIDER_SYNC_RUNS, uuid),
-    BALANCE_HISTORY: (uuid: string) =>
-      pathId(API.PROVIDERS, API_SUB.PROVIDER_BALANCE_HISTORY, uuid),
-    CREDENTIALS_REVEAL: (uuid: string) =>
-      pathId(API.PROVIDERS, API_SUB.PROVIDER_CREDENTIALS_REVEAL, uuid),
+    ACCOUNTS: (uuid: string) => pathId(API.PROVIDERS, API_SUB.PROVIDER_ACCOUNTS, uuid),
+    MERGE: (uuid: string) => pathId(API.PROVIDERS, API_SUB.PROVIDER_MERGE, uuid),
     NETCUP_DEVICE_START: path(API.PROVIDERS, API_SUB.PROVIDER_NETCUP_DEVICE_START),
     NETCUP_DEVICE_POLL: path(API.PROVIDERS, API_SUB.PROVIDER_NETCUP_DEVICE_POLL),
     YANDEX_DISCOVER: path(API.PROVIDERS, API_SUB.PROVIDER_YANDEX_DISCOVER),
   },
+  PROVIDER_ACCOUNTS: {
+    BY_ID: (uuid: string) => pathId(API.PROVIDER_ACCOUNTS, API_SUB.BY_ID, uuid),
+    SYNC: (uuid: string) => pathId(API.PROVIDER_ACCOUNTS, API_SUB.ACCOUNT_SYNC, uuid),
+    SYNC_RUNS: (uuid: string) => pathId(API.PROVIDER_ACCOUNTS, API_SUB.ACCOUNT_SYNC_RUNS, uuid),
+    BALANCE_HISTORY: (uuid: string) =>
+      pathId(API.PROVIDER_ACCOUNTS, API_SUB.ACCOUNT_BALANCE_HISTORY, uuid),
+    SPEND: (uuid: string) => pathId(API.PROVIDER_ACCOUNTS, API_SUB.ACCOUNT_SPEND, uuid),
+    CREDENTIALS_REVEAL: (uuid: string) =>
+      pathId(API.PROVIDER_ACCOUNTS, API_SUB.ACCOUNT_CREDENTIALS_REVEAL, uuid),
+  },
   PROJECTS: {
     ROOT: path(API.PROJECTS),
     BY_ID: (uuid: string) => pathId(API.PROJECTS, API_SUB.BY_ID, uuid),
+    FAVICON: (uuid: string) => pathId(API.PROJECTS, API_SUB.FAVICON, uuid),
     MOVE_ALL: (uuid: string) => pathId(API.PROJECTS, API_SUB.PROJECT_MOVE_ALL, uuid),
     EMPTY: (uuid: string) => pathId(API.PROJECTS, API_SUB.PROJECT_EMPTY, uuid),
     STATS: (uuid: string) => pathId(API.PROJECTS, API_SUB.PROJECT_STATS, uuid),
@@ -143,3 +168,9 @@ export const API_PATH = {
     BY_ID: (uuid: string) => pathId(API.TOKENS, API_SUB.BY_ID, uuid),
   },
 } as const;
+
+/**
+ * Absolute path of the Telegram OIDC callback (the redirect URI is `<panel origin>` + this). The
+ * owner registers it in BotFather, so backend and settings page must build it from the same place.
+ */
+export const TELEGRAM_CALLBACK_PATH = `/${API_PREFIX}${API_PATH.AUTH.TELEGRAM_CALLBACK}`;

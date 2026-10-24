@@ -60,7 +60,7 @@ ENV APP_VERSION=$APP_VERSION \
     GIT_COMMIT=$GIT_COMMIT
 
 LABEL org.opencontainers.image.title="infra-billing" \
-      org.opencontainers.image.description="Self-hosted infra billing panel" \
+      org.opencontainers.image.description="Self-hosted panel for tracking infrastructure costs: syncs balances, servers and billing dates from hosting provider APIs" \
       org.opencontainers.image.version=$APP_VERSION \
       org.opencontainers.image.revision=$GIT_COMMIT
 

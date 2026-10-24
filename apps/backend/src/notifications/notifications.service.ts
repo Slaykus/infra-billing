@@ -11,6 +11,7 @@ import {
   overdueBillingMessage,
   sampleMessages,
   syncErrorMessage,
+  unknownCoverageMessage,
   upcomingBillingMessage,
 } from './messages';
 import { TelegramService } from './telegram.service';
@@ -39,20 +40,23 @@ export class NotificationsService {
     const summary = await this.analytics.summary();
     let sent = 0;
 
-    // 1) Low balance: a service whose imminent charge the provider balance won't cover
-    //    (severity "critical": uncovered + due within ~a week, same definition as the dashboard).
+    // 1) Critical upcoming charges (same definition as the dashboard plate). covered=false →
+    //    the balance won't cover it; covered=null → the panel can't see a balance (manual kind /
+    //    no balance API) — honest "go check the cabinet" alert instead of a fake balance claim.
     for (const ub of summary.upcomingBillings) {
       if (ub.severity !== 'critical') continue;
-      const html = lowBalanceMessage(ub);
-      if (await this.maybeSend(`low-balance:${ub.serviceUuid}`, html)) sent += 1;
+      const unknown = ub.covered === null;
+      const html = unknown ? unknownCoverageMessage(ub) : lowBalanceMessage(ub);
+      const key = unknown ? `unknown-coverage:${ub.serviceUuid}` : `low-balance:${ub.serviceUuid}`;
+      if (await this.maybeSend(key, html)) sent += 1;
     }
 
-    // 1b) Low runway: a prepaid provider (no dated charge) whose balance is estimated to drain
+    // 1b) Low runway: a prepaid account (no dated charge) whose balance is estimated to drain
     //     within ~3 days (severity "critical": same threshold as the dashboard runway card).
     for (const r of summary.balanceRunway) {
       if (r.severity !== 'critical') continue;
       const html = lowRunwayMessage(r);
-      if (await this.maybeSend(`runway:${r.providerUuid}`, html)) sent += 1;
+      if (await this.maybeSend(`runway:${r.accountUuid}`, html)) sent += 1;
     }
 
     // 1c) Overdue: the billing date already passed. Dedup key has no date part, so like the
@@ -71,19 +75,21 @@ export class NotificationsService {
       if (await this.maybeSend(`upcoming:${ub.serviceUuid}:${day}`, html)) sent += 1;
     }
 
-    // 3) Sync errors in the last 24h (one per provider).
+    // 3) Sync errors in the last 24h (one per account).
     const since = dayjs().subtract(THROTTLE_HOURS, 'hour').toDate();
     const errorRuns = await this.syncRuns.listErrorsSince(since);
-    const seenProviders = new Set<string>();
+    const seenAccounts = new Set<string>();
     for (const run of errorRuns) {
-      if (seenProviders.has(run.providerUuid)) continue;
-      seenProviders.add(run.providerUuid);
+      if (seenAccounts.has(run.accountUuid)) continue;
+      seenAccounts.add(run.accountUuid);
+      const { provider, label } = run.account;
       const html = syncErrorMessage(
-        run.provider.name,
+        provider.name,
         run.error ?? 'unknown error',
-        run.provider.loginUrl,
+        provider.loginUrl,
+        provider._count.accounts > 1 ? (label ?? '') : null,
       );
-      if (await this.maybeSend(`sync-error:${run.providerUuid}`, html)) sent += 1;
+      if (await this.maybeSend(`sync-error:${run.accountUuid}`, html)) sent += 1;
     }
 
     if (sent > 0) this.logger.log(`Notifications sent: ${sent}`);

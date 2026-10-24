@@ -1,20 +1,45 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@generated/prisma/client';
-import { Service as ServiceDto } from '@infra/shared';
+import { Service as ServiceDto, type ServiceClientMeta } from '@infra/shared';
 import { ProjectsRepository } from '@repositories/projects/projects.repository';
-import { ProvidersRepository } from '@repositories/providers/providers.repository';
+import { ProviderAccountsRepository } from '@repositories/provider-accounts/provider-accounts.repository';
 import { ServicesRepository } from '@repositories/services/services.repository';
 import { mapService } from '@common/mappers';
+import { resolveAccountOwner } from './account-owner';
 import { CreateServiceDto, ServiceQueryDto, UpdateServiceDto } from './dto/service.dto';
 
 /** Decimal money string, as produced by toFixed(2) and accepted by the API. */
 const MONEY_RE = /^-?\d+(\.\d{1,2})?$/;
 
+const CLIENT_META_KEYS = ['vendor', 'marker', 'markerBg'] as const;
+
+function applyClientMeta(
+  meta: Record<string, unknown>,
+  patch: ServiceClientMeta | undefined,
+): boolean {
+  if (!patch) return false;
+  let dirty = false;
+  for (const key of CLIENT_META_KEYS) {
+    if (!(key in patch)) continue;
+    const next = patch[key];
+    if (next === null || next === undefined || next === '') {
+      if (key in meta) {
+        delete meta[key];
+        dirty = true;
+      }
+    } else if (meta[key] !== next) {
+      meta[key] = next;
+      dirty = true;
+    }
+  }
+  return dirty;
+}
+
 @Injectable()
 export class ServicesService {
   constructor(
     private readonly services: ServicesRepository,
-    private readonly providers: ProvidersRepository,
+    private readonly accounts: ProviderAccountsRepository,
     private readonly projects: ProjectsRepository,
   ) {}
 
@@ -24,12 +49,15 @@ export class ServicesService {
   }
 
   async create(dto: CreateServiceDto): Promise<ServiceDto> {
-    await this.ensureProvider(dto.providerUuid);
+    const owner = await resolveAccountOwner(this.accounts, dto);
     await this.ensureProject(dto.projectUuid);
+    const meta: Record<string, unknown> = {};
+    applyClientMeta(meta, dto.meta);
     const s = await this.services.create({
-      providerUuid: dto.providerUuid,
+      ...owner,
       projectUuid: dto.projectUuid,
       name: dto.name,
+      description: dto.description || null,
       type: dto.type,
       cost: dto.cost,
       currency: dto.currency,
@@ -38,6 +66,7 @@ export class ServicesService {
       nextBillingAt: dto.nextBillingAt ? new Date(dto.nextBillingAt) : null,
       isActive: dto.isActive ?? true,
       isManaged: false,
+      ...(Object.keys(meta).length > 0 ? { meta: meta as Prisma.InputJsonValue } : {}),
     });
     return mapService(s);
   }
@@ -46,9 +75,9 @@ export class ServicesService {
     const existing = await this.services.findByUuid(uuid);
     if (!existing) throw new NotFoundException('Service not found');
 
-    const data: Prisma.ServiceUpdateInput = {};
+    const data: Prisma.ServiceUncheckedUpdateInput = {};
     const meta = { ...((existing.meta ?? {}) as Record<string, unknown>) };
-    let metaDirty = false;
+    let metaDirty = applyClientMeta(meta, dto.meta);
 
     const baselineName =
       typeof meta.syncedName === 'string'
@@ -113,42 +142,44 @@ export class ServicesService {
       }
     }
     if (metaDirty) data.meta = meta as Prisma.InputJsonValue;
+    if (dto.description !== undefined) data.description = dto.description || null;
     if (dto.currency !== undefined) data.currency = dto.currency;
     if (dto.period !== undefined) data.period = dto.period;
     if (dto.countryCode !== undefined) data.countryCode = dto.countryCode;
     if (dto.nextBillingAt !== undefined) {
       data.nextBillingAt = dto.nextBillingAt ? new Date(dto.nextBillingAt) : null;
     }
-    if (dto.isActive !== undefined) data.isActive = dto.isActive;
+    if (dto.isActive !== undefined) {
+      data.isActive = dto.isActive;
+      // Switching off pins the service against sync; switching on hands it back to sync.
+      data.activeOverridden = !dto.isActive;
+    }
     if (dto.projectUuid !== undefined) {
       await this.ensureProject(dto.projectUuid);
-      data.project = { connect: { uuid: dto.projectUuid } };
+      data.projectUuid = dto.projectUuid;
     }
 
-    // Provider can only change for manual services: a synced one is matched by
-    // (providerUuid, externalId), so moving it would orphan it from sync.
-    const moving = dto.providerUuid !== undefined && dto.providerUuid !== existing.providerUuid;
-    if (!moving) {
+    // The account can only change for manual services: a synced one is matched by
+    // (accountUuid, externalId), so moving it would orphan it from sync.
+    const owner =
+      dto.accountUuid !== undefined || dto.providerUuid !== undefined
+        ? await resolveAccountOwner(this.accounts, dto)
+        : null;
+    if (owner === null || owner.accountUuid === existing.accountUuid) {
       const s = await this.services.update(uuid, data);
       return mapService(s);
     }
     if (existing.isManaged) {
-      throw new ConflictException('Cannot change the provider of a synced service');
+      throw new ConflictException('Cannot change the account of a synced service');
     }
-    const newProviderUuid = dto.providerUuid as string;
-    await this.ensureProvider(newProviderUuid);
-    // Payments are re-linked to the new provider inside the same transaction.
-    const s = await this.services.moveToProvider(uuid, newProviderUuid, data);
+    // Payments are re-linked to the new account inside the same transaction.
+    const s = await this.services.moveToAccount(uuid, owner.accountUuid, owner.providerUuid, data);
     return mapService(s);
   }
 
   async remove(uuid: string): Promise<void> {
     if (!(await this.services.exists(uuid))) throw new NotFoundException('Service not found');
     await this.services.delete(uuid);
-  }
-
-  private async ensureProvider(uuid: string): Promise<void> {
-    if (!(await this.providers.exists(uuid))) throw new NotFoundException('Provider not found');
   }
 
   private async ensureProject(uuid: string): Promise<void> {

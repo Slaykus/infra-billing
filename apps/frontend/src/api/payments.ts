@@ -1,13 +1,30 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CreatePayment, PaginatedPayments, Payment } from '@infra/shared';
 import { api } from './client';
-import { API_PATH } from '@infra/shared';
+import { API_PATH, isoDateSchema, uuidSchema } from '@infra/shared';
 
 export interface PaymentFilter {
   providerUuid?: string;
   serviceUuid?: string;
   from?: string;
   to?: string;
+}
+
+/**
+ * Validate a filter read back from localStorage with the same schemas the API enforces; malformed
+ * fields are dropped. serviceUuid is never restored — the filter bar doesn't set it.
+ */
+export function parsePaymentFilter(raw: unknown): PaymentFilter | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const o = raw as Record<string, unknown>;
+  const f: PaymentFilter = {};
+  const provider = uuidSchema.safeParse(o.providerUuid);
+  if (provider.success) f.providerUuid = provider.data;
+  const from = isoDateSchema.safeParse(o.from);
+  if (from.success) f.from = from.data;
+  const to = isoDateSchema.safeParse(o.to);
+  if (to.success) f.to = to.data;
+  return f;
 }
 
 interface UsePaymentsOpts {
@@ -21,6 +38,8 @@ export function usePayments(filter: PaymentFilter = {}, opts: UsePaymentsOpts = 
   return useQuery({
     enabled,
     queryKey: ['payments', filter, page, pageSize],
+    // Switching a filter or page keeps the current rows until the new ones arrive (no blank flash).
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
       if (filter.providerUuid) params.providerUuid = filter.providerUuid;
@@ -37,10 +56,12 @@ export function useCreatePayment() {
   return useMutation({
     mutationFn: async (dto: CreatePayment) =>
       (await api.post<Payment>(API_PATH.PAYMENTS.ROOT, dto)).data,
-    // ['services'] too: paymentsCount on the services list depends on payments.
+    // ['services'] too: paymentsCount on the services list depends on payments; ['analytics'] for
+    // the paid-this-month figures.
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['payments'] });
       qc.invalidateQueries({ queryKey: ['services'] });
+      qc.invalidateQueries({ queryKey: ['analytics'] });
     },
   });
 }
@@ -54,6 +75,7 @@ export function useDeletePayment() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['payments'] });
       qc.invalidateQueries({ queryKey: ['services'] });
+      qc.invalidateQueries({ queryKey: ['analytics'] });
     },
   });
 }

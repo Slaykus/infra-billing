@@ -1,12 +1,23 @@
 import { createElement, useEffect, useState } from 'react';
 import { DEFAULT_ICON_BG, iconFgForBg, resolveTablerIcon } from '@/components/tablerIconCatalog';
-import { faviconRootFallback } from '@/utils/favicon';
+import { cn } from '@/lib/utils';
+import { type IconTone, analyzeIconTone, toneOf } from '@/utils/iconTone';
 
-// Neutral initial avatar, swapped for the favicon only once it loads. Google's "no favicon"
-// placeholder is a ~16px globe, so reject anything that small to avoid the blurry globe. When the
-// primary favicon 404s or is too small (some dashboard subdomains have none), fall back to the
-// registrable domain's icon before settling on the initial. A custom Tabler icon + bg overrides
-// the favicon path entirely.
+// Neutral initial, swapped for the favicon once it loads through the backend proxy (404 or an
+// expired session keeps the initial). The favicon sits bare next to the name, no box of its own:
+// icons that carry an opaque plate show that plate with rounded corners, transparent glyphs
+// float on the row. The one exception is contrast rescue, decided from the icon's own
+// luminance via data-tone + theme variants (no theme subscription in JS): a white glyph gets a
+// dark plate in the light theme, a black glyph a light plate in the dark one. Only the letter
+// placeholder keeps a tile. A custom Tabler icon + bg overrides all of this. Every image is tinted
+// by the viewer's icon-colors mode (icon-tint); in mono the stored colours read as distinct grays.
+
+interface Resolved {
+  key: string;
+  src: string | null;
+  tone: IconTone | null;
+}
+
 export function ProviderIcon({
   name,
   src,
@@ -21,57 +32,45 @@ export function ProviderIcon({
   size?: number;
 }) {
   const TablerIcon = resolveTablerIcon(iconName);
-  const fallback = faviconRootFallback(src);
-  const key = `${src ?? ''}|${fallback ?? ''}`;
-  const [resolved, setResolved] = useState<{ key: string; src: string | null }>({
-    key: '',
-    src: null,
-  });
+  const key = src ?? '';
+  const [resolved, setResolved] = useState<Resolved>({ key: '', src: null, tone: null });
 
   useEffect(() => {
-    if (TablerIcon) return;
-    const candidates = [src, fallback].filter((c): c is string => !!c);
-    if (candidates.length === 0) {
-      setResolved({ key, src: null });
-      return;
-    }
+    if (TablerIcon || !src) return;
     let cancelled = false;
-    const tryAt = (i: number) => {
-      if (i >= candidates.length) {
-        if (!cancelled) setResolved({ key, src: null });
-        return;
-      }
-      const img = new Image();
-      img.onload = () => {
-        if (cancelled) return;
-        if (img.naturalWidth > 16) setResolved({ key, src: candidates[i] });
-        else tryAt(i + 1);
-      };
-      img.onerror = () => {
-        if (!cancelled) tryAt(i + 1);
-      };
-      img.src = candidates[i];
+    const img = new Image();
+    img.onload = () => {
+      if (!cancelled) setResolved({ key, src, tone: analyzeIconTone(img) });
     };
-    tryAt(0);
+    img.onerror = () => {
+      if (!cancelled) setResolved({ key, src: null, tone: null });
+    };
+    img.src = src;
     return () => {
       cancelled = true;
     };
-  }, [TablerIcon, key, src, fallback]);
+  }, [TablerIcon, key, src]);
 
-  const favicon = !TablerIcon && resolved.key === key ? resolved.src : null;
+  const current = !TablerIcon && resolved.key === key ? resolved : null;
+  const favicon = current?.src ?? null;
+  const tone = current?.tone ?? null;
   const initial = (name.trim().charAt(0) || '?').toUpperCase();
-  const bg = iconBg || DEFAULT_ICON_BG;
-  const fg = iconFgForBg(bg);
-  const glyph = Math.max(12, Math.round(size * 0.64));
+  // Same proportion as an 8px corner on a 32px tile, so small and large icons look alike.
+  const radius = Math.max(3, Math.round(size * 0.25));
 
   if (TablerIcon) {
+    const bg = iconBg || DEFAULT_ICON_BG;
+    const fg = iconFgForBg(bg);
+    const glyph = Math.max(12, Math.round(size * 0.64));
     return (
       <div
-        className="flex shrink-0 items-center justify-center rounded-md border border-black/10 select-none"
-        style={{ width: size, height: size, backgroundColor: bg, color: fg }}
+        className="flex shrink-0 items-center justify-center ring-1 ring-foreground/10 ring-inset icon-tint select-none"
+        style={{ width: size, height: size, borderRadius: radius, backgroundColor: bg, color: fg }}
       >
         {createElement(TablerIcon, {
           size: glyph,
+          // Inline size: menu rows force their own svg size on every descendant icon.
+          style: { width: glyph, height: glyph },
           stroke: 1.75,
           color: fg,
           'aria-hidden': true,
@@ -82,15 +81,27 @@ export function ProviderIcon({
 
   return (
     <div
-      className="flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-secondary select-none"
-      style={{ width: size, height: size }}
+      data-tone={toneOf(tone) ?? undefined}
+      className={cn(
+        'flex shrink-0 items-center justify-center overflow-hidden icon-tint select-none',
+        favicon
+          ? 'data-[tone=light]:bg-foreground dark:data-[tone=light]:bg-transparent dark:data-[tone=dark]:bg-foreground'
+          : 'bg-secondary',
+      )}
+      style={{ width: size, height: size, borderRadius: radius }}
     >
       {favicon ? (
-        <img src={favicon} alt="" className="size-full object-cover" />
+        <img
+          src={favicon}
+          alt=""
+          className={tone?.plate ? 'size-full object-cover' : 'size-full object-contain'}
+          // A small inset keeps bare glyphs optically level with plates, which carry their own margins.
+          style={tone?.plate ? undefined : { padding: Math.round(size * 0.08) }}
+        />
       ) : (
         <span
-          className="font-semibold text-secondary-foreground"
-          style={{ fontSize: Math.max(10, Math.round(size * 0.5)) }}
+          className="font-medium text-ink-2"
+          style={{ fontSize: Math.max(10, Math.round(size * 0.46)) }}
         >
           {initial}
         </span>

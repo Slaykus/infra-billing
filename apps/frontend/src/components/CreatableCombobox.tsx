@@ -1,0 +1,143 @@
+import { IconCheck, IconChevronDown, IconPlus } from '@tabler/icons-react';
+import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { comboboxTriggerClass } from '@/components/Combobox';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+
+interface CreatableComboboxProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+  id?: string;
+  /** Normalize a newly created value before commit (default: trim). */
+  normalizeCreate?: (raw: string) => string;
+  /** Fired when the user creates a value that was not in `options`. */
+  onCreate?: (value: string) => void;
+}
+
+/** Searchable select that can create a new option from the query (GitLab label style). */
+export function CreatableCombobox({
+  value,
+  onChange,
+  options,
+  placeholder,
+  id,
+  normalizeCreate = (raw) => raw.trim(),
+  onCreate,
+}: CreatableComboboxProps) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const list = useMemo(() => {
+    if (!value.trim()) return options;
+    if (options.some((o) => o.value === value)) return options;
+    return [...options, { value, label: value }];
+  }, [options, value]);
+  const optionsKey = useMemo(() => list.map((o) => o.value).join('\0'), [list]);
+  const selected = list.find((o) => o.value === value);
+  const display = selected?.label ?? (value || placeholder || '');
+
+  const canCreate = useMemo(() => {
+    const next = normalizeCreate(query);
+    if (!next) return false;
+    const lower = next.toLowerCase();
+    return !list.some((o) => o.value.toLowerCase() === lower || o.label.toLowerCase() === lower);
+  }, [normalizeCreate, list, query]);
+
+  const pick = (v: string) => {
+    onChange(v);
+    setOpen(false);
+    setQuery('');
+  };
+
+  const create = () => {
+    const next = normalizeCreate(query);
+    if (!next) return;
+    onCreate?.(next);
+    pick(next);
+  };
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setQuery('');
+      }}
+      // Without modal a parent dialog's scroll lock swallows wheel events over the list.
+      modal
+    >
+      <PopoverTrigger asChild>
+        <button
+          id={id}
+          type="button"
+          role="combobox"
+          aria-expanded={open}
+          className={comboboxTriggerClass}
+        >
+          <span className={cn('truncate', !value && 'text-muted-foreground')}>{display}</span>
+          <IconChevronDown className="size-4 shrink-0 text-ink-3" stroke={1.5} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
+        <Command key={optionsKey} shouldFilter>
+          <CommandInput
+            placeholder={t('common.searchPlaceholder')}
+            value={query}
+            onValueChange={setQuery}
+          />
+          <CommandList className="max-h-72">
+            <CommandEmpty>
+              {canCreate ? (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-foreground hover:bg-accent"
+                  onClick={create}
+                >
+                  <IconPlus className="size-4 shrink-0" />
+                  {t('common.createOption', { name: normalizeCreate(query) })}
+                </button>
+              ) : (
+                t('common.nothingFound')
+              )}
+            </CommandEmpty>
+            <CommandGroup>
+              {list.map((o) => (
+                <CommandItem
+                  key={o.value}
+                  value={o.label}
+                  keywords={[o.value]}
+                  onSelect={() => pick(o.value)}
+                >
+                  <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                  <IconCheck
+                    className={cn(
+                      'size-4 shrink-0',
+                      o.value === value ? 'opacity-100' : 'opacity-0',
+                    )}
+                  />
+                </CommandItem>
+              ))}
+              {canCreate && (
+                <CommandItem value={`__create__${query}`} onSelect={create}>
+                  <IconPlus className="size-4 shrink-0" />
+                  {t('common.createOption', { name: normalizeCreate(query) })}
+                </CommandItem>
+              )}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}

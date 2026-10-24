@@ -12,6 +12,8 @@ export function MethodRow({
   description,
   enabled,
   onToggle,
+  switchDisabled,
+  switchHint,
   opened,
   onToggleOpen,
   children,
@@ -21,6 +23,9 @@ export function MethodRow({
   description: string;
   enabled: boolean;
   onToggle: (value: boolean) => void;
+  /** The method can't be turned on yet; `switchHint` says what to do first. */
+  switchDisabled?: boolean;
+  switchHint?: string;
   opened?: boolean;
   onToggleOpen?: () => void;
   children?: ReactNode;
@@ -28,28 +33,34 @@ export function MethodRow({
   const expandable = onToggleOpen !== undefined;
   const label = (
     <div className="flex items-center gap-3">
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand/15 text-brand">
-        <RowIcon className="size-5" stroke={1.5} />
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-background text-ink-2">
+        <RowIcon className="size-4.5" stroke={1.5} />
       </div>
       <div className="min-w-0">
         <p className="text-sm font-medium">{title}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
+        <p className="text-[13px] text-ink-2">{description}</p>
+        {switchDisabled && switchHint && <p className="mt-0.5 text-xs text-ink-3">{switchHint}</p>}
       </div>
     </div>
   );
 
   if (!expandable) {
     return (
-      <div className="flex items-center justify-between gap-3 py-3">
+      <div className="flex items-center justify-between gap-3 py-4">
         <div className="min-w-0 flex-1">{label}</div>
-        <Switch checked={enabled} onCheckedChange={onToggle} aria-label={title} />
+        <Switch
+          checked={enabled}
+          onCheckedChange={onToggle}
+          disabled={switchDisabled}
+          aria-label={title}
+        />
       </div>
     );
   }
 
   return (
     <Collapsible open={!!opened} onOpenChange={() => onToggleOpen()}>
-      <div className="flex items-center justify-between gap-3 py-3">
+      <div className="flex items-center justify-between gap-3 py-4">
         {/* When expandable, the whole label toggles the section; only the switch is exempt. */}
         <CollapsibleTrigger asChild>
           <button type="button" className="min-w-0 flex-1 text-left" aria-expanded={opened}>
@@ -58,15 +69,23 @@ export function MethodRow({
         </CollapsibleTrigger>
         <div className="flex items-center gap-1">
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label={title} className="group/expand">
-              <IconChevronDown className="size-4.5 transition-transform group-data-[state=open]/expand:rotate-180" />
+            <Button variant="ghost" size="icon-sm" aria-label={title} className="group/expand">
+              <IconChevronDown
+                stroke={1.5}
+                className="size-4 transition-transform group-data-[state=open]/expand:rotate-180"
+              />
             </Button>
           </CollapsibleTrigger>
-          <Switch checked={enabled} onCheckedChange={onToggle} aria-label={title} />
+          <Switch
+            checked={enabled}
+            onCheckedChange={onToggle}
+            disabled={switchDisabled}
+            aria-label={title}
+          />
         </div>
       </div>
       <CollapsibleContent>
-        <div className="pb-4">{children}</div>
+        <div className="pb-5">{children}</div>
       </CollapsibleContent>
     </Collapsible>
   );

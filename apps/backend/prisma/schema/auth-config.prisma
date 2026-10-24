@@ -20,6 +20,17 @@ model AuthConfig {
   // Stable WebAuthn user handle (random bytes), shared by all of this user's passkeys.
   webauthnUserId Bytes? @map("webauthn_user_id")
 
+  // Telegram OpenID Connect login. The client secret (issued by BotFather, not the bot token) is
+  // AES-256-GCM encrypted. The origin is stored because the redirect URI must match BotFather
+  // exactly. telegramUserId is the owner's numeric Telegram ID captured by the in-panel link step;
+  // only that account may sign in. The display name is a snapshot taken at link time.
+  telegramEnabled         Boolean @default(false) @map("telegram_enabled")
+  telegramClientId        String? @map("telegram_client_id")
+  telegramClientSecretEnc Bytes?  @map("telegram_client_secret_enc")
+  telegramOrigin          String? @map("telegram_origin")
+  telegramUserId          String? @map("telegram_user_id")
+  telegramDisplayName     String? @map("telegram_display_name")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt      @map("updated_at")
 

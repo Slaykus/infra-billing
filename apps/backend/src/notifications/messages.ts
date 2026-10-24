@@ -6,6 +6,8 @@ type BalanceRunway = AnalyticsSummary['balanceRunway'][number];
 
 export const EMOJI = {
   lowBalance: '<tg-emoji emoji-id="5258474669769497337">❗</tg-emoji>',
+  // Deliberately not the low-balance ❗ — the two alerts must be distinguishable in the feed.
+  unknownCoverage: '<tg-emoji emoji-id="5258503720928288433">ℹ</tg-emoji>',
   upcoming: '<tg-emoji emoji-id="5258105663359294787">🗓</tg-emoji>',
   syncError: '<tg-emoji emoji-id="5260342697075416641">❌</tg-emoji>',
   test: '<tg-emoji emoji-id="5260726538302660868">✅</tg-emoji>',
@@ -41,6 +43,25 @@ export function providerLink(name: string, url?: string | null): string {
   return href ? `<a href="${esc(href)}">${label}</a>` : label;
 }
 
+/**
+ * "Provider · label" when the alert is about one of several accounts at a provider (analytics only
+ * sets accountLabel in that case, '' for the original unlabelled account); just the provider name
+ * otherwise.
+ */
+export function accountDisplayName(providerName: string, accountLabel?: string | null): string {
+  if (accountLabel == null) return providerName;
+  return `${providerName} · ${accountLabel || 'основной'}`;
+}
+
+/** Bold cabinet deeplink naming the provider, and the account when it has several. */
+function ownerLink(row: {
+  providerName: string;
+  accountLabel: string | null;
+  providerLoginUrl: string | null;
+}): string {
+  return providerLink(accountDisplayName(row.providerName, row.accountLabel), row.providerLoginUrl);
+}
+
 function ruDays(n: number): string {
   const d10 = n % 10;
   const d100 = n % 100;
@@ -61,28 +82,38 @@ function runwayLabel(days: number): string {
   return `~${days} ${ruDays(days)}`;
 }
 
+// daysOverdue is >= 1 by contract (a charge dated today is upcoming, not overdue), so no "today" case.
 function agoLabelRu(daysOverdue: number): string {
-  if (daysOverdue <= 0) return 'сегодня';
   if (daysOverdue === 1) return 'вчера';
   return `${daysOverdue} ${ruDays(daysOverdue)} назад`;
 }
 
-/** Low balance: an imminent charge the provider balance won't cover. */
+/** Low balance: an imminent charge the account balance won't cover. */
 export function lowBalanceMessage(ub: UpcomingBilling): string {
   return (
     `${EMOJI.lowBalance} <b>Низкий баланс</b>\n\n` +
-    `${EMOJI.provider} ${providerLink(ub.providerName, ub.providerLoginUrl)}\n` +
+    `${EMOJI.provider} ${ownerLink(ub)}\n` +
     `${EMOJI.service} ${esc(ub.name)}\n\n` +
     `${EMOJI.clock} Списание <code>${esc(ub.cost)} ${esc(ub.currency)}</code> ${whenLabel(ub.daysUntil)} — баланса не хватит.\n` +
-    `${EMOJI.balance} Баланс: <code>${esc(ub.providerBalance ?? '0')} ${esc(ub.providerBalanceCurrency ?? '')}</code>`
+    `${EMOJI.balance} Баланс: <code>${esc(ub.accountBalance ?? '0')} ${esc(ub.accountBalanceCurrency ?? '')}</code>`
   );
 }
 
-/** Low runway: a prepaid provider whose balance is estimated to drain in a few days. */
+/** Unknown coverage: an imminent charge on an account whose balance the panel can't see. */
+export function unknownCoverageMessage(ub: UpcomingBilling): string {
+  return (
+    `${EMOJI.unknownCoverage} <b>Баланс неизвестен</b>\n\n` +
+    `${EMOJI.provider} ${ownerLink(ub)}\n` +
+    `${EMOJI.service} ${esc(ub.name)}\n\n` +
+    `${EMOJI.clock} Списание <code>${esc(ub.cost)} ${esc(ub.currency)}</code> ${whenLabel(ub.daysUntil)} — панель не видит баланс, проверь покрытие в ЛК.`
+  );
+}
+
+/** Low runway: a prepaid account whose balance is estimated to drain in a few days. */
 export function lowRunwayMessage(r: BalanceRunway): string {
   return (
     `${EMOJI.balance} <b>Запас кончается</b>\n\n` +
-    `${EMOJI.provider} ${providerLink(r.providerName, r.providerLoginUrl)}\n\n` +
+    `${EMOJI.provider} ${ownerLink(r)}\n\n` +
     `${EMOJI.clock} Баланса хватит ещё на ${runwayLabel(r.daysLeft)} (трата ≈<code>${esc(r.burnPerDay)} ${esc(r.currency)}</code>/день).\n` +
     `${EMOJI.balance} Баланс: <code>${esc(r.balance)} ${esc(r.currency)}</code>`
   );
@@ -92,7 +123,7 @@ export function lowRunwayMessage(r: BalanceRunway): string {
 export function overdueBillingMessage(ob: OverdueBilling): string {
   return (
     `${EMOJI.lowBalance} <b>Просроченное списание</b>\n\n` +
-    `${EMOJI.provider} ${providerLink(ob.providerName, ob.providerLoginUrl)}\n` +
+    `${EMOJI.provider} ${ownerLink(ob)}\n` +
     `${EMOJI.service} ${esc(ob.name)}\n\n` +
     `${EMOJI.date} Дата: <code>${esc(ob.nextBillingAt.slice(0, 10))}</code> (${agoLabelRu(ob.daysOverdue)})\n` +
     `${EMOJI.amount} Сумма: <code>${esc(ob.cost)} ${esc(ob.currency)}</code>`
@@ -103,22 +134,23 @@ export function overdueBillingMessage(ob: OverdueBilling): string {
 export function upcomingBillingMessage(ub: UpcomingBilling, day: string): string {
   return (
     `${EMOJI.upcoming} <b>Скоро списание</b>\n\n` +
-    `${EMOJI.provider} ${providerLink(ub.providerName, ub.providerLoginUrl)}\n` +
+    `${EMOJI.provider} ${ownerLink(ub)}\n` +
     `${EMOJI.service} ${esc(ub.name)}\n\n` +
     `${EMOJI.date} Дата: <code>${esc(day)}</code>\n` +
     `${EMOJI.amount} Сумма: <code>${esc(ub.cost)} ${esc(ub.currency)}</code>`
   );
 }
 
-/** Provider sync failure. */
+/** Account sync failure. `accountLabel` only when the provider has several accounts. */
 export function syncErrorMessage(
   providerName: string,
   error: string,
   loginUrl?: string | null,
+  accountLabel?: string | null,
 ): string {
   return (
     `${EMOJI.syncError} <b>Ошибка синхронизации</b>\n\n` +
-    `${EMOJI.provider} Провайдер: ${providerLink(providerName, loginUrl)}\n` +
+    `${EMOJI.provider} Провайдер: ${providerLink(accountDisplayName(providerName, accountLabel), loginUrl)}\n` +
     `${EMOJI.info} <code>${esc(error)}</code>`
   );
 }
@@ -135,33 +167,52 @@ export function sampleMessages(): string[] {
     name: 'demo-vps',
     providerUuid: '00000000-0000-0000-0000-000000000000',
     providerName: 'Тестовый провайдер',
+    accountUuid: '00000000-0000-0000-0000-000000000000',
+    accountLabel: null,
     providerKind: 'manual',
     providerLoginUrl: 'https://example.com',
     providerFaviconLink: null,
     providerIconName: null,
     providerIconBg: null,
+    type: 'vps',
     countryCode: 'RU',
+    marker: null,
+    markerBg: null,
+    vendor: null,
     nextBillingAt: `${inTwoDays}T00:00:00.000Z`,
     cost: '500.00',
     currency: 'RUB',
     costBase: '500.00',
     daysUntil: 2,
-    providerBalance: '120.00',
-    providerBalanceCurrency: 'RUB',
+    accountBalance: '120.00',
+    accountBalanceCurrency: 'RUB',
     covered: false,
     severity: 'critical',
+  };
+  const sampleUnknown: UpcomingBilling = {
+    ...sample,
+    covered: null,
+    accountBalance: null,
+    accountBalanceCurrency: null,
   };
   const fiveDaysAgo = new Date(Date.now() - 5 * 86_400_000).toISOString().slice(0, 10);
   const sampleOverdue: OverdueBilling = {
     serviceUuid: '00000000-0000-0000-0000-000000000000',
     name: 'demo-vps',
+    providerUuid: '00000000-0000-0000-0000-000000000000',
     providerName: 'Тестовый провайдер',
+    accountUuid: '00000000-0000-0000-0000-000000000000',
+    accountLabel: null,
     providerKind: 'manual',
     providerLoginUrl: 'https://example.com',
     providerFaviconLink: null,
     providerIconName: null,
     providerIconBg: null,
+    type: 'vps',
     countryCode: 'RU',
+    marker: null,
+    markerBg: null,
+    vendor: null,
     nextBillingAt: `${fiveDaysAgo}T00:00:00.000Z`,
     cost: '500.00',
     currency: 'RUB',
@@ -171,6 +222,9 @@ export function sampleMessages(): string[] {
   const sampleRunway: BalanceRunway = {
     providerUuid: '00000000-0000-0000-0000-000000000000',
     providerName: 'Тестовый провайдер',
+    accountUuid: '00000000-0000-0000-0000-000000000000',
+    // One of several accounts at the provider, so the sample shows how such alerts are named.
+    accountLabel: 'второй',
     providerKind: 'manual',
     providerLoginUrl: 'https://example.com',
     providerFaviconLink: null,
@@ -188,6 +242,7 @@ export function sampleMessages(): string[] {
     `${EMOJI.samples} <b>Проверка уведомлений</b> — примеры всех типов ниже:`,
     overdueBillingMessage(sampleOverdue),
     lowBalanceMessage(sample),
+    unknownCoverageMessage(sampleUnknown),
     lowRunwayMessage(sampleRunway),
     upcomingBillingMessage(sample, inTwoDays),
     syncErrorMessage('Тестовый провайдер', 'HTTP 401: неверный API-токен', 'https://example.com'),

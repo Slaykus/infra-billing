@@ -2,14 +2,24 @@ import { Injectable } from '@nestjs/common';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { CookieOptions } from 'express';
+import { API, API_PREFIX } from '@infra/shared';
 import { AppConfigService } from '@config/app-config.service';
 import { ApiTokensRepository } from '@repositories/api-tokens/api-tokens.repository';
 import { AuthConfigService } from './auth-config.service';
 import { verifyPassword } from './password.util';
 import { hashToken } from '../api-tokens/token.util';
+import { TELEGRAM_FLOW_TTL_MS } from './telegram-oidc.service';
 
 export const SESSION_COOKIE = 'infra_session';
 const SESSION_MAX_AGE_SEC = 7 * 24 * 60 * 60; // 7 days
+
+// Encrypted state of a Telegram sign-in/link round-trip. Scoped to the Telegram routes and Lax:
+// the callback is a cross-site redirect from oauth.telegram.org, which a Strict cookie never sees.
+export const TELEGRAM_FLOW_COOKIE = 'infra_tg_flow';
+const TELEGRAM_FLOW_PATH = `/${API_PREFIX}/${API.AUTH}/telegram`;
+// Outlives the flow's own expiry a little, so a late callback still carries the (expired) flow
+// and a slow link attempt is sent back to the settings page instead of the login page.
+const TELEGRAM_FLOW_MAX_AGE_MS = TELEGRAM_FLOW_TTL_MS + 5 * 60 * 1000;
 
 interface SessionPayload {
   u: string;
@@ -72,9 +82,23 @@ export class AuthService {
     return {
       httpOnly: true,
       sameSite: 'strict',
-      secure: this.config.isProd,
+      secure: this.config.cookieSecure,
       path: '/',
       maxAge: SESSION_MAX_AGE_SEC * 1000,
+    };
+  }
+
+  flowCookieOptions(): CookieOptions {
+    return { ...this.flowCookieClearOptions(), maxAge: TELEGRAM_FLOW_MAX_AGE_MS };
+  }
+
+  /** Same attributes minus maxAge: clearCookie only matches a cookie with the same path. */
+  flowCookieClearOptions(): CookieOptions {
+    return {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: this.config.cookieSecure,
+      path: TELEGRAM_FLOW_PATH,
     };
   }
 
