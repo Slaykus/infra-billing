@@ -162,6 +162,8 @@ export class IncomeService {
       month: m,
       actual: (m <= currentKey ? actual.get(m)! : ZERO()).toFixed(2),
       projected: (m > currentKey ? avg : ZERO()).toFixed(2),
+      // Tariff backfill is an expense-side concept; income has no estimated component.
+      estimated: ZERO().toFixed(2),
     }));
   }
 }
