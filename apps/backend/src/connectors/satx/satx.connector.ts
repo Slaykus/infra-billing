@@ -6,6 +6,9 @@ import { Account, Connector, ServiceData } from '../connector.interface';
 const BASE_URL = 'https://satx.cloud';
 // Prices are quoted in rubles (`monthly`, `monthlyRub`, `upgradeCostRub` in the spec).
 const SATX_CURRENCY = 'RUB';
+// The API allows 1 request per second per IP; space calls out a little above that.
+const MIN_INTERVAL_MS = 1100;
+const MAX_RATE_RETRIES = 3;
 
 interface SatxServerListItem {
   vmid: number;
@@ -31,7 +34,17 @@ interface SatxEnvelope {
   success: boolean;
   error?: string;
   message?: string;
+  retryAfter?: number;
 }
+
+const sleep = (ms: number, signal: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const t = setTimeout(resolve, ms);
+    signal.addEventListener('abort', () => {
+      clearTimeout(t);
+      reject(signal.reason ?? new Error('aborted'));
+    }, { once: true });
+  });
 
 const toDate = (s?: string | null): Date | null => {
   if (!s) return null;
@@ -48,9 +61,13 @@ const toDate = (s?: string | null): Date | null => {
  * monthly price (`billing.monthly`, rubles) and the next charge date (`billing.nextPaymentAt`,
  * falling back to the list item's `endingAt`). The list endpoint omits `billing`, so each server is
  * fetched once more by `vmid`.
+ *
+ * Rate limit: 1 request/second per IP (`API_RATE_LIMIT`, with `retryAfter` seconds). Requests are
+ * therefore sequential and spaced out, and a rate-limited call is retried after `retryAfter`.
  */
 export class SatxConnector implements Connector {
   private readonly http: AxiosInstance;
+  private lastCallAt = 0;
 
   constructor(token: string) {
     this.http = axios.create({
@@ -62,6 +79,7 @@ export class SatxConnector implements Connector {
     this.http.interceptors.response.use(undefined, (e) => {
       if (axios.isAxiosError(e)) {
         const body = e.response?.data as SatxEnvelope | undefined;
+        if (body?.error === 'API_RATE_LIMIT') return Promise.reject(new RateLimited(body.retryAfter));
         const msg = body?.message || body?.error;
         throw new Error(
           msg ? `SatxCloud: ${msg}` : `SatxCloud API error (HTTP ${e.response?.status ?? 'network'})`,
@@ -81,22 +99,41 @@ export class SatxConnector implements Connector {
   }
 
   async fetchServices(signal: AbortSignal): Promise<ServiceData[]> {
-    const { data } = await this.http.get<SatxEnvelope & { servers?: SatxServerListItem[] }>(
+    const data = await this.get<SatxEnvelope & { servers?: SatxServerListItem[] }>(
       '/api/servers-management/servers',
-      { signal },
+      signal,
     );
     if (!data.success) throw new Error(`SatxCloud: ${data.message || data.error || 'request failed'}`);
-    const servers = data.servers ?? [];
-    return Promise.all(servers.map((s) => this.withBilling(s, signal)));
+    const out: ServiceData[] = [];
+    // Sequential on purpose: the per-IP rate limit makes parallel detail calls fail.
+    for (const s of data.servers ?? []) out.push(await this.withBilling(s, signal));
+    return out;
+  }
+
+  /** Rate-limit-aware GET: keeps calls >= MIN_INTERVAL_MS apart and retries API_RATE_LIMIT. */
+  private async get<T>(url: string, signal: AbortSignal): Promise<T> {
+    for (let attempt = 0; ; attempt++) {
+      const wait = this.lastCallAt + MIN_INTERVAL_MS - Date.now();
+      if (wait > 0) await sleep(wait, signal);
+      this.lastCallAt = Date.now();
+      try {
+        return (await this.http.get<T>(url, { signal })).data;
+      } catch (e) {
+        if (!(e instanceof RateLimited) || attempt >= MAX_RATE_RETRIES) {
+          throw e instanceof RateLimited ? new Error('SatxCloud: API rate limit exceeded') : e;
+        }
+        await sleep(Math.max(1, e.retryAfter ?? 1) * 1000, signal);
+      }
+    }
   }
 
   /** Enrich a list item with its billing block; on a detail failure keep what the list gave. */
   private async withBilling(item: SatxServerListItem, signal: AbortSignal): Promise<ServiceData> {
     let s: SatxServerDetail = item;
     try {
-      const { data } = await this.http.get<SatxEnvelope & { server?: SatxServerDetail }>(
+      const data = await this.get<SatxEnvelope & { server?: SatxServerDetail }>(
         `/api/servers-management/servers/${item.vmid}`,
-        { signal },
+        signal,
       );
       if (data.success && data.server) s = { ...item, ...data.server };
     } catch (e) {
@@ -125,5 +162,11 @@ export class SatxConnector implements Connector {
         createdAt: s.createdAt,
       },
     };
+  }
+}
+
+class RateLimited extends Error {
+  constructor(readonly retryAfter?: number) {
+    super('SatxCloud: API rate limit');
   }
 }
