@@ -20,6 +20,7 @@ import type { HostbillCredentials } from './hostbill/hostbill.types';
 import { LinodeConnector } from './linode/linode.connector';
 import { NetcupConnector } from './netcup/netcup.connector';
 import { NetlenConnector } from './netlen/netlen.connector';
+import { NodehostConnector } from './nodehost/nodehost.connector';
 import { OpenRouterConnector } from './openrouter/openrouter.connector';
 import { parseOpenRouterCredentials } from './openrouter/openrouter.types';
 import { PorkbunConnector } from './porkbun/porkbun.connector';
@@ -111,6 +112,9 @@ export class ConnectorFactory {
       case 'satx':
         // SatxCloud secret is the raw panel API key (sent as the X-API-Key header).
         return new SatxConnector(token);
+      case 'nodehost':
+        // NodeHost secret is the nodehost-checker worker's status URL (with its access key).
+        return new NodehostConnector(token);
       case 'procloud':
         // ProCloud secret is JSON: { username (email), password, totpSecret? } (panel Keycloak login).
         return new ProcloudConnector(JSON.parse(token) as ProcloudCredentials);

@@ -216,6 +216,7 @@ export const common = {
         deepseek: 'DeepSeek',
         satx: 'SatxCloud',
         procloud: 'ProCloud',
+        nodehost: 'NodeHost',
         manual: 'Manual',
       },
       rateSource: {
@@ -437,6 +438,7 @@ export const common = {
         deepseek: 'DeepSeek',
         satx: 'SatxCloud',
         procloud: 'ProCloud',
+        nodehost: 'NodeHost',
         manual: 'Ручной',
       },
       rateSource: {

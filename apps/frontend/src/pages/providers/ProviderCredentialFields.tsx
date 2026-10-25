@@ -754,6 +754,24 @@ export function ProviderCredentialFields({
     );
   }
 
+  if (kind === 'nodehost') {
+    return (
+      <Field
+        id="cred-token"
+        label={t('providers.field.nodehostWorkerUrl')}
+        description={t('providers.field.nodehostWorkerUrlDesc')}
+      >
+        <SecretFormField
+          form={form}
+          name="token"
+          id="cred-token"
+          hasStored={storedSecrets?.hasToken}
+          reveal={reveal}
+        />
+      </Field>
+    );
+  }
+
   if (kind === 'procloud') {
     return (
       <>

@@ -103,6 +103,9 @@ export const providers = {
       apiTokenDescDeepseek: 'DeepSeek platform → API keys. Used only to read the account balance',
       apiTokenDescSatx: 'SatxCloud panel → API key, sent as the X-API-Key header',
       procloudLoginDesc: 'The email and password you use to sign in to my.procloud.ru',
+      nodehostWorkerUrl: 'Checker URL',
+      nodehostWorkerUrlDesc:
+        'Status URL of the nodehost-checker worker (reads @nodehost_bot), including its access key',
       managementKey: 'Management API key',
       apiTokenDescOpenrouter:
         'Go to openrouter.ai. Open "Home" → "Management Keys" → "New Key", enter any name, then "Create". Copy the key and paste it below.',
@@ -174,6 +177,7 @@ export const providers = {
       deepseekToken: 'Enter the DeepSeek API key',
       satxToken: 'Enter the SatxCloud API key',
       procloudCreds: 'Enter the ProCloud email and password',
+      nodehostUrl: 'Enter the nodehost-checker URL',
       openrouterToken: 'Enter the OpenRouter Management API key',
       yandexKey: 'Paste the Yandex Cloud service account authorized key (JSON)',
     },
@@ -347,6 +351,9 @@ export const providers = {
       apiTokenDescDeepseek: 'Платформа DeepSeek → API keys. Используется только для чтения баланса',
       apiTokenDescSatx: 'Панель SatxCloud → API-ключ (передаётся в заголовке X-API-Key)',
       procloudLoginDesc: 'Email и пароль, с которыми вы входите в my.procloud.ru',
+      nodehostWorkerUrl: 'URL чекера',
+      nodehostWorkerUrlDesc:
+        'Адрес статуса воркера nodehost-checker (читает @nodehost_bot) вместе с ключом доступа',
       apiTokenDescStormwall:
         'Личный кабинет StormWall → API-ключ (передаётся в заголовке x-api-key)',
       managementKey: 'Management API-ключ',
@@ -420,6 +427,7 @@ export const providers = {
       deepseekToken: 'Укажите API-ключ DeepSeek',
       satxToken: 'Укажите API-ключ SatxCloud',
       procloudCreds: 'Укажите email и пароль ProCloud',
+      nodehostUrl: 'Укажите URL nodehost-checker',
       openrouterToken: 'Укажите Management API-ключ OpenRouter',
       yandexKey: 'Вставьте авторизованный ключ сервисного аккаунта Yandex Cloud (JSON)',
     },

@@ -60,6 +60,7 @@ export const DEFAULT_LOGIN_URLS: Record<string, string> = {
   deepseek: 'https://platform.deepseek.com',
   satx: 'https://satx.cloud/panel',
   procloud: 'https://my.procloud.ru',
+  nodehost: 'https://t.me/nodehost_bot',
 };
 
 export const EMPTY_IDENTITY: IdentityFormValues = {
@@ -190,6 +191,7 @@ export function validateAccountCredentials(
   if (requireCreds && kind === 'satx' && !v.token) return t('providers.err.satxToken');
   if (requireCreds && kind === 'procloud' && !(v.username && v.password))
     return t('providers.err.procloudCreds');
+  if (requireCreds && kind === 'nodehost' && !v.token) return t('providers.err.nodehostUrl');
   return null;
 }
 

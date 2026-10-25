@@ -27,6 +27,7 @@ const PROVIDER_KINDS: ProviderKind[] = [
   'deepseek',
   'satx',
   'procloud',
+  'nodehost',
   'manual',
 ];
 

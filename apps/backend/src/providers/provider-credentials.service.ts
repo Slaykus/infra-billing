@@ -88,7 +88,8 @@ export class ProviderCredentialsService {
       kind === 'linode' ||
       kind === 'stormwall' ||
       kind === 'deepseek' ||
-      kind === 'satx'
+      kind === 'satx' ||
+      kind === 'nodehost'
     ) {
       return { hasToken: true };
     }
@@ -141,7 +142,8 @@ export class ProviderCredentialsService {
       kind === 'linode' ||
       kind === 'stormwall' ||
       kind === 'deepseek' ||
-      kind === 'satx'
+      kind === 'satx' ||
+      kind === 'nodehost'
     ) {
       const token = this.decryptRaw(enc);
       return token ? { token } : {};
