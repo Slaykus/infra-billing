@@ -23,6 +23,7 @@ import { NetlenConnector } from './netlen/netlen.connector';
 import { OpenRouterConnector } from './openrouter/openrouter.connector';
 import { parseOpenRouterCredentials } from './openrouter/openrouter.types';
 import { PorkbunConnector } from './porkbun/porkbun.connector';
+import { ProcloudConnector, type ProcloudCredentials } from './procloud/procloud.connector';
 import type { PorkbunCredentials } from './porkbun/porkbun.types';
 import { SatxConnector } from './satx/satx.connector';
 import { SelectelConnector } from './selectel/selectel.connector';
@@ -110,6 +111,9 @@ export class ConnectorFactory {
       case 'satx':
         // SatxCloud secret is the raw panel API key (sent as the X-API-Key header).
         return new SatxConnector(token);
+      case 'procloud':
+        // ProCloud secret is JSON: { username (email), password, totpSecret? } (panel Keycloak login).
+        return new ProcloudConnector(JSON.parse(token) as ProcloudCredentials);
       case 'openrouter':
         return new OpenRouterConnector(parseOpenRouterCredentials(token));
       default:

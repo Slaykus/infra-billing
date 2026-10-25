@@ -215,6 +215,7 @@ export const common = {
         openrouter: 'OpenRouter',
         deepseek: 'DeepSeek',
         satx: 'SatxCloud',
+        procloud: 'ProCloud',
         manual: 'Manual',
       },
       rateSource: {
@@ -435,6 +436,7 @@ export const common = {
         openrouter: 'OpenRouter',
         deepseek: 'DeepSeek',
         satx: 'SatxCloud',
+        procloud: 'ProCloud',
         manual: 'Ручной',
       },
       rateSource: {

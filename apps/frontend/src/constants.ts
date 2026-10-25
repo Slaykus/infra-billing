@@ -26,6 +26,7 @@ const PROVIDER_KINDS: ProviderKind[] = [
   'openrouter',
   'deepseek',
   'satx',
+  'procloud',
   'manual',
 ];
 
