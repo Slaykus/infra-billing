@@ -213,6 +213,8 @@ export const common = {
         stormwall: 'StormWall',
         doubleservers: 'Double Servers',
         openrouter: 'OpenRouter',
+        deepseek: 'DeepSeek',
+        satx: 'SatxCloud',
         manual: 'Manual',
       },
       rateSource: {
@@ -431,6 +433,8 @@ export const common = {
         stormwall: 'StormWall',
         doubleservers: 'Double Servers',
         openrouter: 'OpenRouter',
+        deepseek: 'DeepSeek',
+        satx: 'SatxCloud',
         manual: 'Ручной',
       },
       rateSource: {

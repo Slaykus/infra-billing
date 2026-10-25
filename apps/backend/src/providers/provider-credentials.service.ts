@@ -86,7 +86,9 @@ export class ProviderCredentialsService {
       kind === 'netlen' ||
       kind === 'vultr' ||
       kind === 'linode' ||
-      kind === 'stormwall'
+      kind === 'stormwall' ||
+      kind === 'deepseek' ||
+      kind === 'satx'
     ) {
       return { hasToken: true };
     }
@@ -137,7 +139,9 @@ export class ProviderCredentialsService {
       kind === 'netlen' ||
       kind === 'vultr' ||
       kind === 'linode' ||
-      kind === 'stormwall'
+      kind === 'stormwall' ||
+      kind === 'deepseek' ||
+      kind === 'satx'
     ) {
       const token = this.decryptRaw(enc);
       return token ? { token } : {};

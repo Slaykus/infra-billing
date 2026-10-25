@@ -100,6 +100,8 @@ export const providers = {
         'Cloudflare → My Profile → API Tokens → create a token with Registrar: Domains:Read and Billing:Read',
       cloudflareAccountIdDesc: 'Cloudflare account ID (dashboard URL or GET /accounts)',
       apiTokenDescStormwall: 'StormWall personal cabinet → API key, sent as the x-api-key header',
+      apiTokenDescDeepseek: 'DeepSeek platform → API keys. Used only to read the account balance',
+      apiTokenDescSatx: 'SatxCloud panel → API key, sent as the X-API-Key header',
       managementKey: 'Management API key',
       apiTokenDescOpenrouter:
         'Go to openrouter.ai. Open "Home" → "Management Keys" → "New Key", enter any name, then "Create". Copy the key and paste it below.',
@@ -168,6 +170,8 @@ export const providers = {
       vdsinaToken: 'Enter the VDSina API token',
       cloudflareCreds: 'Enter the Cloudflare account ID and API token',
       stormwallToken: 'Enter the StormWall API key',
+      deepseekToken: 'Enter the DeepSeek API key',
+      satxToken: 'Enter the SatxCloud API key',
       openrouterToken: 'Enter the OpenRouter Management API key',
       yandexKey: 'Paste the Yandex Cloud service account authorized key (JSON)',
     },
@@ -338,6 +342,8 @@ export const providers = {
       apiTokenDescCloudflare:
         'Cloudflare → My Profile → API Tokens → создать токен с правами Registrar: Domains:Read и Billing:Read',
       cloudflareAccountIdDesc: 'Account ID аккаунта Cloudflare (из URL дашборда или GET /accounts)',
+      apiTokenDescDeepseek: 'Платформа DeepSeek → API keys. Используется только для чтения баланса',
+      apiTokenDescSatx: 'Панель SatxCloud → API-ключ (передаётся в заголовке X-API-Key)',
       apiTokenDescStormwall:
         'Личный кабинет StormWall → API-ключ (передаётся в заголовке x-api-key)',
       managementKey: 'Management API-ключ',
@@ -408,6 +414,8 @@ export const providers = {
       vdsinaToken: 'Укажите API-токен VDSina',
       cloudflareCreds: 'Укажите account ID и API-токен Cloudflare',
       stormwallToken: 'Укажите API-ключ StormWall',
+      deepseekToken: 'Укажите API-ключ DeepSeek',
+      satxToken: 'Укажите API-ключ SatxCloud',
       openrouterToken: 'Укажите Management API-ключ OpenRouter',
       yandexKey: 'Вставьте авторизованный ключ сервисного аккаунта Yandex Cloud (JSON)',
     },

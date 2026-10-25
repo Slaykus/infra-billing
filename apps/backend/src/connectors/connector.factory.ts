@@ -10,6 +10,7 @@ import type { BillmgrCredentials } from './billmgr/billmgr.types';
 import { CloudflareConnector } from './cloudflare/cloudflare.connector';
 import type { CloudflareCredentials } from './cloudflare/cloudflare.types';
 import { Connector } from './connector.interface';
+import { DeepseekConnector } from './deepseek/deepseek.connector';
 import { DoubleServersConnector } from './doubleservers/doubleservers.connector';
 import type { DoubleServersCredentials } from './doubleservers/doubleservers.types';
 import { HetznerConnector } from './hetzner/hetzner.connector';
@@ -23,6 +24,7 @@ import { OpenRouterConnector } from './openrouter/openrouter.connector';
 import { parseOpenRouterCredentials } from './openrouter/openrouter.types';
 import { PorkbunConnector } from './porkbun/porkbun.connector';
 import type { PorkbunCredentials } from './porkbun/porkbun.types';
+import { SatxConnector } from './satx/satx.connector';
 import { SelectelConnector } from './selectel/selectel.connector';
 import type { SelectelCredentials } from './selectel/selectel.types';
 import { SpaceshipConnector } from './spaceship/spaceship.connector';
@@ -102,6 +104,12 @@ export class ConnectorFactory {
       case 'doubleservers':
         // Double Servers secret is JSON: { username (email), password, totpSecret? }.
         return new DoubleServersConnector(JSON.parse(token) as DoubleServersCredentials);
+      case 'deepseek':
+        // DeepSeek secret is the raw platform API key (sent as the Authorization Bearer token).
+        return new DeepseekConnector(token);
+      case 'satx':
+        // SatxCloud secret is the raw panel API key (sent as the X-API-Key header).
+        return new SatxConnector(token);
       case 'openrouter':
         return new OpenRouterConnector(parseOpenRouterCredentials(token));
       default:

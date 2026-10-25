@@ -588,6 +588,44 @@ export function ProviderCredentialFields({
     );
   }
 
+  if (kind === 'deepseek') {
+    return (
+      <Field
+        id="cred-token"
+        label={t('providers.field.apiToken')}
+        description={t('providers.field.apiTokenDescDeepseek')}
+        link="https://platform.deepseek.com/api_keys"
+      >
+        <SecretFormField
+          form={form}
+          name="token"
+          id="cred-token"
+          hasStored={storedSecrets?.hasToken}
+          reveal={reveal}
+        />
+      </Field>
+    );
+  }
+
+  if (kind === 'satx') {
+    return (
+      <Field
+        id="cred-token"
+        label={t('providers.field.apiToken')}
+        description={t('providers.field.apiTokenDescSatx')}
+        link="https://satx.cloud/panel"
+      >
+        <SecretFormField
+          form={form}
+          name="token"
+          id="cred-token"
+          hasStored={storedSecrets?.hasToken}
+          reveal={reveal}
+        />
+      </Field>
+    );
+  }
+
   if (kind === 'openrouter') {
     return (
       <>
